@@ -51,15 +51,13 @@
                 <th>수량</th>
             </tr>
         </thead>
-        <tbody id="resultBody">
-            </tbody>
+        <tbody id="resultBody"></tbody>
     </table>
 
     <button id="saveBtn" class="btn btn-save" style="display:none;" onclick="saveData()">데이터베이스에 최종 저장</button>
 </div>
 
 <script>
-    // 사장님이 주신 정보를 코드에 아예 심었습니다.
     const SUPABASE_URL = "https://kiyztxxvynsrjusqlirt.supabase.co/rest/v1/";
     const SUPABASE_KEY = "sb_publishable_CY7UqYJoq4kY1JfpuFY72g_PAWZFgTT";
     const GEMINI_API_KEY = "AIzaSyCESLSwHsIzSlnKbnpEE7dJQugxHCWPMis";
@@ -85,7 +83,7 @@
                     body: JSON.stringify({
                         contents: [{
                             parts: [
-                                { text: "이 품의서 이미지에서 '문서번호', '기안일자', '신청자'를 추출하고, 아래쪽 표에서 '프로젝트명', '프로젝트코드', '구매요청번호', '품명', '규격', '수량'을 추출해서 반드시 [{},{}] 형태의 JSON 배열로만 답변해줘." },
+                                { text: "이 이미지에서 '문서번호', '기안일자', '신청자'를 찾고, 표에서 '프로젝트명', '프로젝트코드', '구매요청번호', '품명', '규격', '수량'을 추출해줘. 반드시 다른 설명 없이 오직 JSON 배열 [{\"문서번호\":\"...\", \"items\":[{\"프로젝트명\":\"...\"}]}] 형식으로만 대답해." },
                                 { inline_data: { mime_type: "image/jpeg", data: base64Data } }
                             ]
                         }]
@@ -93,22 +91,25 @@
                 });
 
                 const result = await response.json();
-                const aiText = result.candidates[0].content.parts[0].text;
-                const jsonMatch = aiText.match(/\[.*\]/s);
+                if (!result.candidates) throw new Error("AI가 답변을 생성하지 못했습니다.");
                 
-                if (!jsonMatch) throw new Error("데이터 형식을 찾을 수 없습니다.");
-                const items = JSON.parse(jsonMatch[0]);
+                const aiText = result.candidates[0].content.parts[0].text;
+                const jsonMatch = aiText.match(/\[.*\]/s) || aiText.match(/\{.*\}/s);
+                
+                if (!jsonMatch) throw new Error("JSON 데이터를 찾을 수 없습니다.");
+                const rawData = JSON.parse(jsonMatch[0]);
 
-                // 첫 번째 행에서 기본 정보 추출 시도
-                if(items.length > 0) {
-                    document.getElementById('doc_no').innerText = items[0].문서번호 || "확인불가";
-                    document.getElementById('doc_date').innerText = items[0].기안일자 || "확인불가";
-                    document.getElementById('doc_requester').innerText = items[0].신청자 || "확인불가";
-                }
+                // 데이터 구조가 배열인지 객체인지에 따라 유연하게 처리
+                const data = Array.isArray(rawData) ? rawData[0] : rawData;
+                const items = data.items || (Array.isArray(rawData) ? rawData : []);
+
+                document.getElementById('doc_no').innerText = data.문서번호 || "-";
+                document.getElementById('doc_date').innerText = data.기안일자 || "-";
+                document.getElementById('doc_requester').innerText = data.신청자 || "-";
 
                 displayItems(items);
             } catch (e) {
-                alert("분석 중 오류가 발생했습니다: " + e.message);
+                alert("분석 중 오류 발생: " + e.message);
                 console.error(e);
             } finally {
                 document.getElementById('loading').style.display = 'none';
@@ -119,7 +120,10 @@
     function displayItems(items) {
         const tbody = document.getElementById('resultBody');
         tbody.innerHTML = '';
+        if (!items || items.length === 0) return;
+
         items.forEach((item, index) => {
+            if(!item.프로젝트코드 && !item.품명) return; // 빈 데이터 건너뛰기
             tbody.innerHTML += `
                 <tr>
                     <td><input type="text" id="proj_name_${index}" value="${item.프로젝트명 || ''}"></td>
@@ -145,14 +149,14 @@
                 prq_no: document.getElementById(`prq_${i}`).value,
                 item_name: document.getElementById(`item_${i}`).value,
                 spec: document.getElementById(`spec_${i}`).value,
-                quantity: parseInt(document.getElementById(`qty_${i}`).value),
+                quantity: parseInt(document.getElementById(`qty_${i}`).value) || 0,
                 status: '입고대기'
             });
         }
 
         const { error } = await _supabase.from('purchase_history').insert(dataToSave);
         if (error) alert("저장 실패: " + error.message);
-        else alert("데이터베이스에 성공적으로 저장되었습니다!");
+        else alert("성공적으로 저장되었습니다!");
     }
 </script>
 

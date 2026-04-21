@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>인텍플러스 구매관리 시스템</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #f8f9fa; }
+        .container { max-width: 1100px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        h1 { color: #2c3e50; text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .upload-card { border: 2px dashed #3498db; background: #ebf5fb; padding: 40px; text-align: center; border-radius: 10px; margin-bottom: 20px; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: center; }
+        th { background-color: #34495e; color: white; }
+        .btn { padding: 12px 25px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-scan { background-color: #3498db; color: white; margin-top: 15px; width: 200px; }
+        .btn-save { background-color: #27ae60; color: white; width: 100%; margin-top: 20px; font-size: 18px; }
+        .btn:hover { opacity: 0.8; }
+        input[type="text"], input[type="number"] { width: 90%; padding: 5px; border: 1px solid #ccc; border-radius: 4px; text-align: center; }
+        #loading { display: none; font-weight: bold; color: #e67e22; margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>인텍플러스 구매 관리 시스템 (AI 스캔)</h1>
+
+    <div class="upload-card">
+        <h3>품의서 사진 업로드</h3>
+        <input type="file" id="imageInput" accept="image/*" style="margin-bottom: 10px;"><br>
+        <button class="btn btn-scan" onclick="processAI()">AI 자동 데이터 추출</button>
+        <div id="loading">🚀 AI가 사진 속 데이터를 읽고 있습니다... (약 10초 소요)</div>
+    </div>
+
+    <table id="resultTable">
+        <thead>
+            <tr>
+                <th>프로젝트 코드</th>
+                <th>PRQ번호</th>
+                <th>SITE</th>
+                <th>품명</th>
+                <th>수량</th>
+                <th>긴급</th>
+            </tr>
+        </thead>
+        <tbody id="resultBody">
+            </tbody>
+    </table>
+
+    <button id="saveBtn" class="btn btn-save" style="display:none;" onclick="saveData()">데이터베이스에 최종 저장</button>
+</div>
+
+<script>
+    // ★★★ 사장님의 정보를 아래에 정확히 넣어주세요 ★★★
+    const SUPABASE_URL = "https://kiyztxxvynsrjusqlirt.supabase.co/rest/v1/";
+    const SUPABASE_KEY = "sb_publishable_CY7UqYJoq4kY1JfpuFY72g_PAWZFgTT";
+    const GEMINI_API_KEY = "AIzaSyCESLSwHsIzSlnKbnpEE7dJQugxHCWPMis";
+
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function processAI() {
+        const fileInput = document.getElementById('imageInput');
+        if (!fileInput.files[0]) return alert("이미지를 선택해주세요.");
+
+        document.getElementById('loading').style.display = 'block';
+        
+        // 1. 이미지 파일을 글자로 바꾸기 위해 AI(Gemini)에게 보냅니다.
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onloadend = async () => {
+            const base64Data = reader.result.split(',')[1];
+            
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [
+                                { text: "이 이미지의 표에서 프로젝트코드, 구매요청번호(PRQ), SITE, 품명, 수량을 찾아서 JSON 형식으로 대답해줘. 만약 긴급이면 urgent를 true로 해줘." },
+                                { inline_data: { mime_type: "image/jpeg", data: base64Data } }
+                            ]
+                        }]
+                    })
+                });
+
+                const result = await response.json();
+                // AI 대답에서 데이터만 골라내기
+                const aiText = result.candidates[0].content.parts[0].text;
+                const jsonMatch = aiText.match(/\[.*\]/s);
+                const items = JSON.parse(jsonMatch[0]);
+
+                displayItems(items);
+            } catch (e) {
+                alert("AI 분석 중 오류가 발생했습니다. 키 설정을 확인해주세요.");
+                console.error(e);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        };
+    }
+
+    function displayItems(items) {
+        const tbody = document.getElementById('resultBody');
+        tbody.innerHTML = '';
+        items.forEach((item, index) => {
+            tbody.innerHTML += `
+                <tr>
+                    <td><input type="text" id="code_${index}" value="${item.프로젝트코드 || ''}"></td>
+                    <td><input type="text" id="prq_${index}" value="${item.구매요청번호 || item.PRQ || ''}"></td>
+                    <td><input type="text" id="site_${index}" value="${item.SITE || ''}"></td>
+                    <td><input type="text" id="item_${index}" value="${item.품명 || ''}"></td>
+                    <td><input type="number" id="qty_${index}" value="${item.수량 || 0}"></td>
+                    <td><input type="checkbox" id="urgent_${index}" ${item.urgent ? 'checked' : ''}></td>
+                </tr>
+            `;
+        });
+        document.getElementById('saveBtn').style.display = 'block';
+    }
+
+    async function saveData() {
+        const rows = document.getElementById('resultBody').children;
+        const dataToSave = [];
+
+        for (let i = 0; i < rows.length; i++) {
+            dataToSave.push({
+                project_code: document.getElementById(`code_${i}`).value,
+                site: document.getElementById(`site_${i}`).value,
+                item_name: document.getElementById(`item_${i}`).value,
+                quantity: document.getElementById(`qty_${i}`).value,
+                is_urgent: document.getElementById(`urgent_${i}`).checked,
+                status: '입고대기'
+            });
+        }
+
+        const { error } = await _supabase.from('purchase_history').insert(dataToSave);
+        if (error) alert("저장 실패: " + error.message);
+        else alert("성공적으로 저장되었습니다!");
+    }
+</script>
+
+</body>
+</html>

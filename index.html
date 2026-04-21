@@ -2,131 +2,97 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>인텍플러스 구매관리 시스템</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #f0f2f5; color: #333; }
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #f0f2f5; }
         .container { max-width: 1100px; margin: auto; background: white; padding: 35px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        h1 { color: #1a73e8; text-align: center; margin-bottom: 30px; font-weight: 800; border-bottom: 2px solid #e8eaed; padding-bottom: 15px; }
-        
-        .upload-card { 
-            border: 3px dashed #1a73e8; background: #f8fbff; padding: 50px; 
-            text-align: center; border-radius: 15px; margin-bottom: 25px;
-            transition: all 0.2s; cursor: pointer;
-        }
-        .upload-card.dragover { background: #e8f0fe; border-color: #174ea6; transform: scale(1.01); }
-        
-        .file-select-btn {
-            background-color: #1a73e8; color: white; padding: 12px 24px;
-            border-radius: 8px; display: inline-block; margin-top: 15px;
-            font-weight: bold; cursor: pointer; border: none; font-size: 15px;
-        }
-
+        h1 { color: #1a73e8; text-align: center; border-bottom: 2px solid #e8eaed; padding-bottom: 15px; }
+        .upload-card { border: 3px dashed #1a73e8; background: #f8fbff; padding: 40px; text-align: center; border-radius: 15px; margin-bottom: 25px; transition: 0.2s; cursor: pointer; }
+        .upload-card.dragover { background: #e8f0fe; transform: scale(1.01); }
+        .file-select-btn { background-color: #1a73e8; color: white; padding: 12px 24px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
         .info-header { background: #f8f9fa; padding: 18px; border-radius: 10px; margin-bottom: 20px; display: flex; gap: 40px; font-weight: bold; border-left: 5px solid #1a73e8; }
-        .info-header span { color: #1a73e8; margin-left: 5px; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; border-radius: 8px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { border: 1px solid #e8eaed; padding: 12px; text-align: center; }
-        th { background-color: #5f6368; color: white; font-size: 13px; }
-        
-        .btn-save { background-color: #34a853; color: white; width: 100%; margin-top: 30px; padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 18px; display:none; }
-        #loading { display: none; font-weight: bold; color: #f9ab00; margin-top: 15px; font-size: 15px; }
+        th { background-color: #5f6368; color: white; }
         input { width: 90%; padding: 6px; border: 1px solid #dadce0; border-radius: 4px; text-align: center; }
+        #loading { display: none; color: #f9ab00; font-weight: bold; margin-top: 10px; }
+        .btn-save { background-color: #34a853; color: white; width: 100%; margin-top: 30px; padding: 15px; border: none; border-radius: 8px; font-size: 18px; cursor: pointer; display: none; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🛒 인텍플러스 구매 요청 관리</h1>
-
+    <h1>🛒 인텍플러스 구매 관리</h1>
     <div class="upload-card" id="dropZone">
-        <h3>📄 품의서 HTML 파일을 여기로 드래그하거나 버튼을 누르세요!</h3>
-        <p>파일을 끌어다 놓으면 즉시 분석을 시작합니다.</p>
-        <button class="file-select-btn" onclick="document.getElementById('fileInput').click()">컴퓨터에서 파일 선택</button>
+        <h3>📄 HTML 파일을 드래그하거나 버튼을 클릭하세요</h3>
+        <button class="file-select-btn" onclick="document.getElementById('fileInput').click()">파일 선택</button>
         <input type="file" id="fileInput" accept=".html,.htm" style="display: none;">
-        <div id="loading">✨ 제미가 데이터를 꼼꼼하게 읽는 중입니다...</div>
+        <div id="loading">✨ 데이터를 분석 중입니다...</div>
     </div>
-
     <div class="info-header">
-        <div>문서번호: <span id="doc_no">-</span></div>
-        <div>기안일자: <span id="doc_date">-</span></div>
-        <div>신청자: <span id="doc_requester">-</span></div>
+        <div>문서번호: <span id="doc_no" style="color:#1a73e8">-</span></div>
+        <div>기안자: <span id="doc_requester" style="color:#1a73e8">-</span></div>
     </div>
-
     <table>
-        <thead>
-            <tr><th>프로젝트명</th><th>프로젝트 코드</th><th>구매요청번호</th><th>품명</th><th>규격</th><th>수량</th></tr>
-        </thead>
+        <thead><tr><th>프로젝트명</th><th>프로젝트 코드</th><th>품명</th><th>규격</th><th>수량</th></tr></thead>
         <tbody id="resultBody"></tbody>
     </table>
-
-    <button id="saveBtn" class="btn btn-save" onclick="saveToSupabase()">✅ 검토 완료 - 데이터베이스 저장</button>
+    <button id="saveBtn" class="btn btn-save" onclick="saveToSupabase()">✅ 데이터베이스 저장</button>
 </div>
 
 <script>
     const SUPABASE_URL = "https://kiyztxxvynsrjusqlirt.supabase.co/rest/v1/";
     const SUPABASE_KEY = "sb_publishable_CY7UqYJoq4kY1JfpuFY72g_PAWZFgTT";
     const GEMINI_API_KEY = "AIzaSyCESLSwHsIzSlnKbnpEE7dJQugxHCWPMis";
-
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
 
-    // 드래그앤드롭 이벤트 방어 및 구현
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
-    });
+    // 드래그앤드롭 완벽 차단 및 구현
+    window.addEventListener("dragover", e => e.preventDefault(), false);
+    window.addEventListener("drop", e => e.preventDefault(), false);
 
-    dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-    dropZone.addEventListener('drop', e => {
-        dropZone.classList.remove('dragover');
-        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
-    });
+    dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+    fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
 
-    fileInput.addEventListener('change', e => {
-        if (e.target.files.length) handleFile(e.target.files[0]);
-    });
-
-    function handleFile(file) {
-        const reader = new FileReader();
+    async function handleFile(file) {
+        if (!file) return;
         document.getElementById('loading').style.display = 'block';
-        document.getElementById('saveBtn').style.display = 'none';
-
+        const reader = new FileReader();
         reader.onload = async (e) => {
             const parser = new DOMParser();
             const doc = parser.parseFromString(e.target.result, 'text/html');
-            const cleanText = doc.body.innerText.substring(0, 10000); // 텍스트만 추출 및 최적화
+            // 핵심: 텍스트가 너무 많으면 AI가 뻗으므로 본문 텍스트만 8000자 이내로 절삭
+            const bodyText = doc.body.innerText.replace(/\s+/g, ' ').substring(0, 8000);
 
             try {
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: `Extract purchase request data into JSON (keys: doc_no, date, user, items:[{p_name, p_code, prq, name, spec, qty}]). No markdown, just JSON object. Text: ${cleanText}` }]
-                        }]
+                        contents: [{ parts: [{ text: `Extract data into JSON (doc_no, user, items:[{p_name, p_code, name, spec, qty}]). Return only JSON object. Text: ${bodyText}` }] }]
                     })
                 });
 
-                const result = await response.json();
-                const aiResponse = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!aiResponse) throw new Error("AI 응답을 받지 못했습니다.");
+                const resData = await response.json();
+                const aiText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!aiText) throw new Error("AI 응답 데이터가 없습니다.");
 
-                const data = JSON.parse(aiResponse.match(/\{[\s\S]*\}/)[0]);
+                const cleanJson = JSON.parse(aiText.match(/\{[\s\S]*\}/)[0]);
 
-                document.getElementById('doc_no').innerText = data.doc_no || "-";
-                document.getElementById('doc_date').innerText = data.date || "-";
-                document.getElementById('doc_requester').innerText = data.user || "-";
+                document.getElementById('doc_no').innerText = cleanJson.doc_no || "-";
+                document.getElementById('doc_requester').innerText = cleanJson.user || "-";
 
                 const tbody = document.getElementById('resultBody');
                 tbody.innerHTML = '';
-                (data.items || []).forEach((item, i) => {
+                (cleanJson.items || []).forEach((item, i) => {
                     tbody.innerHTML += `<tr>
                         <td><input type="text" id="p_name_${i}" value="${item.p_name || ''}"></td>
                         <td><input type="text" id="p_code_${i}" value="${item.p_code || ''}"></td>
-                        <td><input type="text" id="prq_${i}" value="${item.prq || ''}"></td>
                         <td><input type="text" id="name_${i}" value="${item.name || ''}"></td>
                         <td><input type="text" id="spec_${i}" value="${item.spec || ''}"></td>
                         <td><input type="number" id="qty_${i}" value="${item.qty || 0}"></td>
@@ -134,8 +100,7 @@
                 });
                 document.getElementById('saveBtn').style.display = 'block';
             } catch (err) {
-                console.error(err);
-                alert("분석 실패: " + err.message);
+                alert("분석 오류: " + err.message);
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
@@ -150,7 +115,6 @@
             dataToSave.push({
                 project_name: document.getElementById(`p_name_${i}`).value,
                 project_code: document.getElementById(`p_code_${i}`).value,
-                prq_no: document.getElementById(`prq_${i}`).value,
                 item_name: document.getElementById(`name_${i}`).value,
                 spec: document.getElementById(`spec_${i}`).value,
                 quantity: parseInt(document.getElementById(`qty_${i}`).value) || 0,
@@ -158,7 +122,7 @@
             });
         }
         const { error } = await _supabase.from('purchase_history').insert(dataToSave);
-        if (error) alert("저장 실패: " + error.message); else alert("🎉 데이터베이스 저장 완료!");
+        if (error) alert("저장 실패!"); else alert("🎉 데이터베이스 저장 완료!");
     }
 </script>
 </body>

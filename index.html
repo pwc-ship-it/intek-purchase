@@ -71,11 +71,11 @@
                     body: JSON.stringify({
                         contents: [{
                             parts: [
-                                { text: "This is a business purchase request form. Read the text and extract data into JSON. Format: {\"doc_no\":\"\", \"date\":\"\", \"user\":\"\", \"items\":[{\"p_name\":\"\", \"p_code\":\"\", \"prq\":\"\", \"name\":\"\", \"spec\":\"\", \"qty\":0}]}. If some fields are missing, leave them empty string. Return only JSON." },
+                                { text: "Extract all items from this purchase request form. Accuracy is critical. If text is small, zoom in mentally. Output strictly in JSON format like this: {\"doc_no\": \"number\", \"date\": \"yyyy-mm-dd\", \"user\": \"name\", \"items\": [{\"p_name\": \"project\", \"p_code\": \"code\", \"prq\": \"PRQ number\", \"name\": \"item name\", \"spec\": \"specification\", \"qty\": 1}]}. Just give me the JSON, no explanations." },
                                 { inline_data: { mime_type: "image/jpeg", data: base64Data } }
                             ]
                         }],
-                        // 모든 보안 카테고리를 차단 해제하여 거부 방지
+                        // 보안 필터를 완전히 꺼서 내용 차단을 방지합니다.
                         safetySettings: [
                             { "category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE" },
                             { "category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE" },
@@ -87,39 +87,43 @@
 
                 const result = await response.json();
                 
-                // 거부되었을 때 상세 이유 확인을 위한 로직 추가
-                if (result.promptFeedback && result.promptFeedback.blockReason) {
-                    throw new Error("구글 보안 정책에 의해 차단되었습니다: " + result.promptFeedback.blockReason);
-                }
-
-                if (!result.candidates || !result.candidates[0].content) {
-                    throw new Error("AI가 내용을 읽지 못했습니다. 사진을 더 밝게 찍어보세요.");
+                // AI 응답이 비어있는지 체크하는 안전장치
+                if (!result.candidates || result.candidates.length === 0 || !result.candidates[0].content) {
+                    throw new Error("AI가 이미지에서 텍스트를 추출하지 못했습니다. 조명이나 각도를 바꿔서 다시 찍어보세요.");
                 }
 
                 let aiText = result.candidates[0].content.parts[0].text;
-                aiText = aiText.replace(/```json/g, "").replace(/```/g, "").trim();
-                const data = JSON.parse(aiText);
+                // JSON만 추출하기 위한 정규식 처리
+                const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) throw new Error("JSON 형식을 찾을 수 없습니다.");
+                
+                const data = JSON.parse(jsonMatch[0]);
 
+                // 화면 UI에 데이터 뿌리기
                 document.getElementById('doc_no').innerText = data.doc_no || "-";
                 document.getElementById('doc_date').innerText = data.date || "-";
                 document.getElementById('doc_requester').innerText = data.user || "-";
 
                 const tbody = document.getElementById('resultBody');
                 tbody.innerHTML = '';
-                data.items.forEach((item, i) => {
-                    tbody.innerHTML += `<tr>
-                        <td><input id="p_name_${i}" value="${item.p_name || ''}"></td>
-                        <td><input id="p_code_${i}" value="${item.p_code || ''}"></td>
-                        <td><input id="prq_${i}" value="${item.prq || ''}"></td>
-                        <td><input id="name_${i}" value="${item.name || ''}"></td>
-                        <td><input id="spec_${i}" value="${item.spec || ''}"></td>
-                        <td><input type="number" id="qty_${i}" value="${item.qty || 0}"></td>
-                    </tr>`;
-                });
-                document.getElementById('saveBtn').style.display = 'block';
+                if(data.items && data.items.length > 0) {
+                    data.items.forEach((item, i) => {
+                        tbody.innerHTML += `<tr>
+                            <td><input id="p_name_${i}" value="${item.p_name || ''}"></td>
+                            <td><input id="p_code_${i}" value="${item.p_code || ''}"></td>
+                            <td><input id="prq_${i}" value="${item.prq || ''}"></td>
+                            <td><input id="name_${i}" value="${item.name || ''}"></td>
+                            <td><input id="spec_${i}" value="${item.spec || ''}"></td>
+                            <td><input type="number" id="qty_${i}" value="${item.qty || 0}"></td>
+                        </tr>`;
+                    });
+                    document.getElementById('saveBtn').style.display = 'block';
+                } else {
+                    alert("품목 데이터를 찾지 못했습니다.");
+                }
             } catch (e) {
                 alert("분석 실패: " + e.message);
-                console.log("Error Detail:", e);
+                console.error("상세 에러:", e);
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }

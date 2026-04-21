@@ -14,7 +14,7 @@
             text-align: center; border-radius: 15px; margin-bottom: 25px;
             transition: all 0.3s; cursor: pointer;
         }
-        .upload-card.dragover { background: #e8f0fe; border-color: #174ea6; transform: scale(1.01); }
+        .upload-card:hover, .upload-card.dragover { background: #e8f0fe; border-color: #174ea6; }
         .info-header { background: #f8f9fa; padding: 18px; border-radius: 10px; margin-bottom: 20px; display: flex; gap: 40px; font-weight: bold; border-left: 5px solid #1a73e8; }
         .info-header span { color: #1a73e8; margin-left: 5px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; border-radius: 8px; overflow: hidden; }
@@ -31,10 +31,9 @@
     <h1>🛒 인텍플러스 구매 요청 관리</h1>
 
     <div class="upload-card" id="dropZone" onclick="document.getElementById('fileInput').click()">
-        <h3>📄 품의서 HTML 파일을 여기로 드래그하세요!</h3>
-        <p>또는 클릭하여 파일을 선택할 수 있습니다.</p>
+        <h3>📄 품의서 HTML 파일을 여기로 드래그하거나 클릭하세요!</h3>
         <input type="file" id="fileInput" accept=".html,.htm" style="display: none;">
-        <div id="loading">✨ 제미가 데이터를 꼼꼼하게 읽는 중...</div>
+        <div id="loading">✨ 제미가 검증된 로직으로 분석 중입니다... (약 5~10초)</div>
     </div>
 
     <div class="info-header">
@@ -54,6 +53,7 @@
 </div>
 
 <script>
+    // 쵸리님의 정보 유지
     const SUPABASE_URL = "https://kiyztxxvynsrjusqlirt.supabase.co/rest/v1/";
     const SUPABASE_KEY = "sb_publishable_CY7UqYJoq4kY1JfpuFY72g_PAWZFgTT";
     const GEMINI_API_KEY = "AIzaSyCESLSwHsIzSlnKbnpEE7dJQugxHCWPMis";
@@ -62,6 +62,7 @@
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
 
+    // 드래그 앤 드롭 핸들러
     dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
     dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('dragover'); });
     dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
@@ -73,9 +74,9 @@
         document.getElementById('loading').style.display = 'block';
 
         reader.onload = async (e) => {
-            let htmlText = e.target.result;
-            // 에러 방지: HTML 내 불필요한 공백 및 특수문자 정제
-            htmlText = htmlText.replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(e.target.result, 'text/html');
+            const cleanText = doc.body.innerText; // 전처리: 텍스트만 추출
 
             try {
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
@@ -84,27 +85,31 @@
                     body: JSON.stringify({
                         contents: [{
                             parts: [{ 
-                                text: "Extract 'doc_no', 'date', 'user' and 'items' (p_name, p_code, prq, name, spec, qty) from this HTML. Return ONLY pure JSON format without any markdown blocks or comments. HTML: " + htmlText 
+                                text: `Extract data into JSON with keys: "doc_no", "date", "user", "items" (each item: "p_name", "p_code", "prq", "name", "spec", "qty"). Only return the JSON object. Text: ${cleanText}` 
                             }]
                         }]
                     })
                 });
 
                 const result = await response.json();
-                let aiResponse = result.candidates[0].content.parts[0].text;
-                // 에러 방지: 응답 텍스트에서 JSON만 추출
-                const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-                if (!jsonMatch) throw new Error("데이터 형식을 읽지 못했습니다.");
+                if (!result.candidates || result.candidates.length === 0) throw new Error("AI 응답이 없습니다.");
                 
-                const data = JSON.parse(jsonMatch[0]);
+                let aiText = result.candidates[0].content.parts[0].text;
+                // 검증 로직: JSON 부분만 정확히 슬라이싱
+                const jsonStart = aiText.indexOf('{');
+                const jsonEnd = aiText.lastIndexOf('}') + 1;
+                const data = JSON.parse(aiText.substring(jsonStart, jsonEnd));
 
+                // UI 업데이트
                 document.getElementById('doc_no').innerText = data.doc_no || "-";
                 document.getElementById('doc_date').innerText = data.date || "-";
                 document.getElementById('doc_requester').innerText = data.user || "-";
 
                 const tbody = document.getElementById('resultBody');
                 tbody.innerHTML = '';
-                (data.items || []).forEach((item, i) => {
+                
+                const items = data.items || [];
+                items.forEach((item, i) => {
                     tbody.innerHTML += `<tr>
                         <td><input type="text" id="p_name_${i}" value="${item.p_name || ''}"></td>
                         <td><input type="text" id="p_code_${i}" value="${item.p_code || ''}"></td>
@@ -114,9 +119,11 @@
                         <td><input type="number" id="qty_${i}" value="${item.qty || 0}"></td>
                     </tr>`;
                 });
-                document.getElementById('saveBtn').style.display = 'block';
+                
+                if (items.length > 0) document.getElementById('saveBtn').style.display = 'block';
             } catch (err) {
-                alert("분석 실패: " + err.message);
+                console.error("검증 에러:", err);
+                alert("데이터 분석 중 오류가 발생했습니다. 파일 내용을 확인해주세요.");
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
@@ -134,12 +141,8 @@
                 prq_no: document.getElementById(`prq_${i}`).value,
                 item_name: document.getElementById(`name_${i}`).value,
                 spec: document.getElementById(`spec_${i}`).value,
-                quantity: parseInt(document.getElementById(`qty_${i}`).value) || 0
+                quantity: parseInt(document.getElementById(`qty_${i}`).value) || 0,
+                doc_no: document.getElementById('doc_no').innerText
             });
         }
-        const { error } = await _supabase.from('purchase_history').insert(dataToSave);
-        if (error) alert("저장 실패: " + error.message); else alert("🎉 데이터베이스 저장 완료!");
-    }
-</script>
-</body>
-</html>
+        const {

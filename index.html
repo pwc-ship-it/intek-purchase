@@ -35,9 +35,9 @@
     </div>
 
     <div class="info-header">
-        <div>문서번호: <span id="doc_no"></span></div>
-        <div>기안일자: <span id="doc_date"></span></div>
-        <div>신청자: <span id="doc_requester"></span></div>
+        <div>문서번호: <span id="doc_no">-</span></div>
+        <div>기안일자: <span id="doc_date">-</span></div>
+        <div>신청자: <span id="doc_requester">-</span></div>
     </div>
 
     <table id="resultTable">
@@ -59,7 +59,7 @@
 </div>
 
 <script>
-    // ★★★ 사장님의 정보를 아래에 정확히 다시 넣어주세요 ★★★
+    // 사장님이 주신 정보를 코드에 아예 심었습니다.
     const SUPABASE_URL = "https://kiyztxxvynsrjusqlirt.supabase.co/rest/v1/";
     const SUPABASE_KEY = "sb_publishable_CY7UqYJoq4kY1JfpuFY72g_PAWZFgTT";
     const GEMINI_API_KEY = "AIzaSyCESLSwHsIzSlnKbnpEE7dJQugxHCWPMis";
@@ -85,7 +85,7 @@
                     body: JSON.stringify({
                         contents: [{
                             parts: [
-                                { text: "이 이미지의 표에서 프로젝트명, 프로젝트코드, 구매요청번호, 품명, 규격, 수량을 찾아서 JSON 형식으로 대답해줘. 만약 긴급이면 urgent를 true로 해줘." },
+                                { text: "이 품의서 이미지에서 '문서번호', '기안일자', '신청자'를 추출하고, 아래쪽 표에서 '프로젝트명', '프로젝트코드', '구매요청번호', '품명', '규격', '수량'을 추출해서 반드시 [{},{}] 형태의 JSON 배열로만 답변해줘." },
                                 { inline_data: { mime_type: "image/jpeg", data: base64Data } }
                             ]
                         }]
@@ -95,11 +95,20 @@
                 const result = await response.json();
                 const aiText = result.candidates[0].content.parts[0].text;
                 const jsonMatch = aiText.match(/\[.*\]/s);
+                
+                if (!jsonMatch) throw new Error("데이터 형식을 찾을 수 없습니다.");
                 const items = JSON.parse(jsonMatch[0]);
+
+                // 첫 번째 행에서 기본 정보 추출 시도
+                if(items.length > 0) {
+                    document.getElementById('doc_no').innerText = items[0].문서번호 || "확인불가";
+                    document.getElementById('doc_date').innerText = items[0].기안일자 || "확인불가";
+                    document.getElementById('doc_requester').innerText = items[0].신청자 || "확인불가";
+                }
 
                 displayItems(items);
             } catch (e) {
-                alert("AI 분석 중 오류가 발생했습니다. 키 설정을 확인해주세요.");
+                alert("분석 중 오류가 발생했습니다: " + e.message);
                 console.error(e);
             } finally {
                 document.getElementById('loading').style.display = 'none';
@@ -115,7 +124,7 @@
                 <tr>
                     <td><input type="text" id="proj_name_${index}" value="${item.프로젝트명 || ''}"></td>
                     <td><input type="text" id="code_${index}" value="${item.프로젝트코드 || ''}"></td>
-                    <td><input type="text" id="prq_${index}" value="${item.구매요청번호 || item.PRQ번호 || ''}"></td>
+                    <td><input type="text" id="prq_${index}" value="${item.구매요청번호 || ''}"></td>
                     <td><input type="text" id="item_${index}" value="${item.품명 || ''}"></td>
                     <td><input type="text" id="spec_${index}" value="${item.규격 || ''}"></td>
                     <td><input type="number" id="qty_${index}" value="${item.수량 || 0}"></td>
@@ -136,14 +145,14 @@
                 prq_no: document.getElementById(`prq_${i}`).value,
                 item_name: document.getElementById(`item_${i}`).value,
                 spec: document.getElementById(`spec_${i}`).value,
-                quantity: document.getElementById(`qty_${i}`).value,
+                quantity: parseInt(document.getElementById(`qty_${i}`).value),
                 status: '입고대기'
             });
         }
 
         const { error } = await _supabase.from('purchase_history').insert(dataToSave);
         if (error) alert("저장 실패: " + error.message);
-        else alert("성공적으로 저장되었습니다!");
+        else alert("데이터베이스에 성공적으로 저장되었습니다!");
     }
 </script>
 

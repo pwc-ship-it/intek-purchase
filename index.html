@@ -64,7 +64,6 @@
         }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-
         .upload-card {
             border: 3px dashed var(--primary);
             background: #f8fbff;
@@ -77,7 +76,6 @@
         .upload-card:hover,
         .upload-card.dragover {
             background: #e8f0fe;
-            transform: scale(1.005);
         }
         .upload-card h3 { margin: 0 0 16px 0; }
         .btn {
@@ -95,7 +93,6 @@
         .btn-success:hover { opacity: 0.9; }
         .btn-danger { background: var(--danger); color: white; padding: 6px 12px; font-size: 12px; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
         .loading {
             display: none;
             color: var(--warning);
@@ -104,7 +101,6 @@
             margin: 16px 0;
         }
         .loading.show { display: block; }
-
         .info-header {
             background: #f8f9fa;
             padding: 16px 20px;
@@ -118,7 +114,6 @@
         }
         .info-header.show { display: flex; }
         .info-header span.value { color: var(--primary); margin-left: 6px; }
-
         .table-wrapper {
             overflow-x: auto;
             margin-top: 16px;
@@ -140,8 +135,6 @@
             background-color: #5f6368;
             color: white;
             font-weight: 600;
-            position: sticky;
-            top: 0;
         }
         tbody tr:hover { background: #fafbfc; }
         input.cell {
@@ -158,7 +151,6 @@
             border-color: var(--primary);
             background: #f8fbff;
         }
-
         .action-bar {
             display: flex;
             gap: 12px;
@@ -166,7 +158,6 @@
             justify-content: flex-end;
         }
         .action-bar .btn { padding: 12px 24px; font-size: 15px; }
-
         .toast {
             position: fixed;
             top: 24px;
@@ -185,7 +176,6 @@
         .toast.show { opacity: 1; transform: translateY(0); }
         .toast.success { background: var(--success); }
         .toast.error { background: var(--danger); }
-
         .filter-bar {
             display: flex;
             gap: 12px;
@@ -217,7 +207,6 @@
         <button class="tab" data-tab="history">📋 저장된 구매 리스트</button>
     </div>
 
-    <!-- 업로드 탭 -->
     <div id="tab-upload" class="tab-content active">
         <div class="upload-card" id="dropZone">
             <h3>📄 품의서 HTML 파일을 드래그하거나 클릭하세요</h3>
@@ -249,17 +238,16 @@
         </div>
 
         <div class="action-bar" id="actionBar" style="display:none;">
-            <button class="btn btn-primary" onclick="addRow()">+ 행 추가</button>
-            <button class="btn btn-success" onclick="saveToSupabase()">✅ 데이터베이스에 저장</button>
+            <button class="btn btn-primary" id="addRowBtn">+ 행 추가</button>
+            <button class="btn btn-success" id="saveBtn">✅ 데이터베이스에 저장</button>
         </div>
     </div>
 
-    <!-- 조회 탭 -->
     <div id="tab-history" class="tab-content">
         <div class="filter-bar">
             <input type="text" id="searchDoc" placeholder="🔍 문서번호 검색">
             <input type="text" id="searchName" placeholder="🔍 품명 검색">
-            <button class="btn btn-primary" onclick="loadHistory()">새로고침</button>
+            <button class="btn btn-primary" id="refreshBtn">새로고침</button>
         </div>
         <div id="historyContent">
             <div class="empty-state">조회 버튼을 눌러 저장된 데이터를 불러오세요.</div>
@@ -270,26 +258,31 @@
 <div id="toast" class="toast"></div>
 
 <script>
-    // ======================================================
-    // 🔧 설정 (Supabase)
-    // ======================================================
-    // ⚠️ 이 두 값은 본인의 Supabase 프로젝트 값으로 교체하세요.
-    // anon key는 공개돼도 안전합니다 (RLS 정책이 보호함).
-    const SUPABASE_URL = "https://kiyztxxvynsrjusqlirt.supabase.co/rest/v1/";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtpeXp0eHh2eW5zcmp1c3FsaXJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MzEwOTksImV4cCI6MjA5MjMwNzA5OX0.26rUt3fnWIKrTa_lQiIphaMO6ggoXAswhEE1g9iZ7_Y";
+// ==========================================================
+// 🔧 Supabase 설정 — 아래 두 줄만 본인 값으로 교체하세요
+// ==========================================================
+const SUPABASE_URL = 'https://kiyztxxvynsrjusqlirt.supabase.co/rest/v1/';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtpeXp0eHh2eW5zcmp1c3FsaXJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MzEwOTksImV4cCI6MjA5MjMwNzA5OX0.26rUt3fnWIKrTa_lQiIphaMO6ggoXAswhEE1g9iZ7_Y';
+// ==========================================================
+
+(function () {
+    'use strict';
+
     const TABLE_NAME = 'purchase_items';
 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Supabase 클라이언트 초기화
+    let sb = null;
+    try {
+        sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch (e) {
+        console.error('Supabase 초기화 실패:', e);
+    }
 
-    // ======================================================
     // 상태
-    // ======================================================
     let currentDocNo = '';
     let currentUser = '';
 
-    // ======================================================
-    // DOM 참조
-    // ======================================================
+    // DOM
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
     const loading = document.getElementById('loading');
@@ -297,79 +290,75 @@
     const resultWrapper = document.getElementById('resultWrapper');
     const resultBody = document.getElementById('resultBody');
     const actionBar = document.getElementById('actionBar');
+    const addRowBtn = document.getElementById('addRowBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
 
-    // ======================================================
-    // 탭 전환
-    // ======================================================
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    // --- 탭 ---
+    document.querySelectorAll('.tab').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+            document.querySelectorAll('.tab-content').forEach(function (c) { c.classList.remove('active'); });
             tab.classList.add('active');
             document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
             if (tab.dataset.tab === 'history') loadHistory();
         });
     });
 
-    // ======================================================
-    // 드래그앤드롭
-    // ======================================================
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => {
-        window.addEventListener(e, (ev) => { ev.preventDefault(); ev.stopPropagation(); }, false);
+    // --- 드래그앤드롭 ---
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function (ev) {
+        window.addEventListener(ev, function (e) { e.preventDefault(); e.stopPropagation(); }, false);
     });
-    dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-    dropZone.addEventListener('drop', (e) => {
+    dropZone.addEventListener('dragover', function () { dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', function () { dropZone.classList.remove('dragover'); });
+    dropZone.addEventListener('drop', function (e) {
         dropZone.classList.remove('dragover');
         if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
     });
-    dropZone.addEventListener('click', (e) => {
+    dropZone.addEventListener('click', function (e) {
         if (e.target.tagName !== 'INPUT') fileInput.click();
     });
-    fileInput.addEventListener('change', (e) => {
+    fileInput.addEventListener('change', function (e) {
         if (e.target.files.length) handleFile(e.target.files[0]);
     });
 
-    // ======================================================
-    // 파일 처리
-    // ======================================================
+    // --- 버튼 이벤트 ---
+    addRowBtn.addEventListener('click', function () { appendRow({}); });
+    saveBtn.addEventListener('click', saveToSupabase);
+    refreshBtn.addEventListener('click', loadHistory);
+
+    // --- 파일 처리 ---
     async function handleFile(file) {
         loading.classList.add('show');
         try {
             const html = await file.text();
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
-            const cleanText = (doc.body?.innerText || '').replace(/\s+/g, ' ').trim();
+            const cleanText = (doc.body ? doc.body.innerText : '').replace(/\s+/g, ' ').trim();
 
             if (!cleanText) throw new Error('HTML에서 텍스트를 추출할 수 없습니다.');
 
-            // 서버리스 함수 호출 (API 키는 서버에만 있음)
             const res = await fetch('/api/extract', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: cleanText }),
+                body: JSON.stringify({ text: cleanText })
             });
 
             const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(data.error || `서버 오류 (${res.status})`);
-            }
+            if (!res.ok) throw new Error(data.error || ('서버 오류 (' + res.status + ')'));
 
             renderData(data);
-            showToast(`${data.items.length}개 품목이 추출되었습니다.`, 'success');
+            showToast(data.items.length + '개 품목이 추출되었습니다.', 'success');
         } catch (err) {
             console.error(err);
             showToast('⚠️ 분석 에러: ' + err.message, 'error');
         } finally {
             loading.classList.remove('show');
-            fileInput.value = ''; // 같은 파일 재업로드 허용
+            fileInput.value = '';
         }
     }
 
-    // ======================================================
-    // 테이블 렌더링
-    // ======================================================
+    // --- 테이블 렌더링 ---
     function renderData(data) {
         currentDocNo = data.doc_no || '';
         currentUser = data.user || '';
@@ -379,26 +368,29 @@
         infoArea.classList.add('show');
 
         resultBody.innerHTML = '';
-        (data.items || []).forEach(item => appendRow(item));
+        (data.items || []).forEach(function (item) { appendRow(item); });
         resultWrapper.style.display = 'block';
         actionBar.style.display = 'flex';
     }
 
-    function appendRow(item = {}) {
+    function appendRow(item) {
+        item = item || {};
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><input class="cell" data-k="p_name" value="${escapeHtml(item.p_name || '')}"></td>
-            <td><input class="cell" data-k="p_code" value="${escapeHtml(item.p_code || '')}"></td>
-            <td><input class="cell" data-k="name" value="${escapeHtml(item.name || '')}"></td>
-            <td><input class="cell" data-k="spec" value="${escapeHtml(item.spec || '')}"></td>
-            <td><input class="cell" data-k="qty" type="number" min="0" value="${item.qty || 0}"></td>
-            <td><button class="btn btn-danger" onclick="this.closest('tr').remove(); updateCount();">삭제</button></td>
-        `;
+        tr.innerHTML =
+            '<td><input class="cell" data-k="p_name" value="' + escapeHtml(item.p_name || '') + '"></td>' +
+            '<td><input class="cell" data-k="p_code" value="' + escapeHtml(item.p_code || '') + '"></td>' +
+            '<td><input class="cell" data-k="name" value="' + escapeHtml(item.name || '') + '"></td>' +
+            '<td><input class="cell" data-k="spec" value="' + escapeHtml(item.spec || '') + '"></td>' +
+            '<td><input class="cell" data-k="qty" type="number" min="0" value="' + (item.qty || 0) + '"></td>' +
+            '<td><button class="btn btn-danger" type="button">삭제</button></td>';
+        // 삭제 버튼
+        tr.querySelector('.btn-danger').addEventListener('click', function () {
+            tr.remove();
+            updateCount();
+        });
         resultBody.appendChild(tr);
         updateCount();
     }
-
-    function addRow() { appendRow(); }
 
     function updateCount() {
         document.getElementById('item_count').innerText = resultBody.querySelectorAll('tr').length;
@@ -413,100 +405,86 @@
             .replace(/'/g, '&#039;');
     }
 
-    // ======================================================
-    // Supabase 저장 (같은 문서번호가 이미 있으면 거부)
-    // ======================================================
+    // --- 저장 (중복 문서번호면 거부) ---
     async function saveToSupabase() {
-        if (!currentDocNo) {
-            showToast('문서번호가 비어 있습니다. 확인 후 다시 시도하세요.', 'error');
+        if (!sb) {
+            showToast('Supabase 연결이 설정되지 않았습니다.', 'error');
             return;
         }
-
+        if (!currentDocNo) {
+            showToast('문서번호가 비어 있습니다.', 'error');
+            return;
+        }
         const rows = resultBody.querySelectorAll('tr');
         if (rows.length === 0) {
             showToast('저장할 품목이 없습니다.', 'error');
             return;
         }
 
-        const saveBtn = document.querySelector('.action-bar .btn-success');
-        if (saveBtn) saveBtn.disabled = true;
-
+        saveBtn.disabled = true;
         try {
-            // 1. 중복 검사: 같은 문서번호가 이미 있는지 확인
-            const { count, error: checkErr } = await supabase
+            // 1) 중복 검사
+            const check = await sb
                 .from(TABLE_NAME)
                 .select('id', { count: 'exact', head: true })
                 .eq('doc_no', currentDocNo);
 
-            if (checkErr) throw checkErr;
+            if (check.error) throw check.error;
 
-            if (count && count > 0) {
-                showToast(
-                    `⚠️ 문서번호가 중복되어 업로드 되지 않습니다. (${currentDocNo})`,
-                    'error'
-                );
+            if (check.count && check.count > 0) {
+                showToast('⚠️ 문서번호가 중복되어 업로드 되지 않습니다. (' + currentDocNo + ')', 'error');
                 return;
             }
 
-            // 2. 품목 데이터 구성
-            const items = Array.from(rows).map(tr => {
+            // 2) 데이터 구성
+            const items = Array.from(rows).map(function (tr) {
                 const obj = {
                     doc_no: currentDocNo,
                     requester: currentUser,
-                    uploaded_at: new Date().toISOString(),
+                    uploaded_at: new Date().toISOString()
                 };
-                tr.querySelectorAll('.cell').forEach(inp => {
+                tr.querySelectorAll('.cell').forEach(function (inp) {
                     const k = inp.dataset.k;
-                    obj[k] = k === 'qty' ? (Number(inp.value) || 0) : inp.value.trim();
+                    obj[k] = (k === 'qty') ? (Number(inp.value) || 0) : inp.value.trim();
                 });
                 return obj;
             });
 
-            // 3. 삽입
-            const { error: insErr } = await supabase
-                .from(TABLE_NAME)
-                .insert(items);
-
-            if (insErr) {
-                // 유니크 제약 위반 (DB 레벨에서 중복 방지한 경우)
-                if (insErr.code === '23505') {
-                    showToast(
-                        `⚠️ 문서번호가 중복되어 업로드 되지 않습니다. (${currentDocNo})`,
-                        'error'
-                    );
+            // 3) 삽입
+            const ins = await sb.from(TABLE_NAME).insert(items);
+            if (ins.error) {
+                if (ins.error.code === '23505') {
+                    showToast('⚠️ 문서번호가 중복되어 업로드 되지 않습니다. (' + currentDocNo + ')', 'error');
                     return;
                 }
-                throw insErr;
+                throw ins.error;
             }
 
-            showToast(`✅ ${items.length}건이 저장되었습니다. (문서: ${currentDocNo})`, 'success');
+            showToast('✅ ' + items.length + '건이 저장되었습니다. (문서: ' + currentDocNo + ')', 'success');
         } catch (err) {
             console.error(err);
             showToast('❌ 저장 실패: ' + (err.message || err), 'error');
         } finally {
-            if (saveBtn) saveBtn.disabled = false;
+            saveBtn.disabled = false;
         }
     }
 
-    // ======================================================
-    // 저장 이력 조회
-    // ======================================================
+    // --- 조회 ---
     async function loadHistory() {
         const historyContent = document.getElementById('historyContent');
+        if (!sb) {
+            historyContent.innerHTML = '<div class="empty-state">Supabase 연결이 설정되지 않았습니다.</div>';
+            return;
+        }
         historyContent.innerHTML = '<div class="empty-state">⏳ 불러오는 중...</div>';
 
         const docQuery = document.getElementById('searchDoc').value.trim();
         const nameQuery = document.getElementById('searchName').value.trim();
 
         try {
-            let query = supabase
-                .from(TABLE_NAME)
-                .select('*')
-                .order('uploaded_at', { ascending: false })
-                .limit(500);
-
-            if (docQuery) query = query.ilike('doc_no', `%${docQuery}%`);
-            if (nameQuery) query = query.ilike('name', `%${nameQuery}%`);
+            let query = sb.from(TABLE_NAME).select('*').order('uploaded_at', { ascending: false }).limit(500);
+            if (docQuery) query = query.ilike('doc_no', '%' + docQuery + '%');
+            if (nameQuery) query = query.ilike('name', '%' + nameQuery + '%');
 
             const { data, error } = await query;
             if (error) throw error;
@@ -520,38 +498,37 @@
                 '<th>문서번호</th><th>신청자</th><th>프로젝트명</th><th>코드</th>' +
                 '<th>품명</th><th>규격</th><th>수량</th><th>업로드일시</th>' +
                 '</tr></thead><tbody>';
-            data.forEach(row => {
-                html += `<tr>
-                    <td>${escapeHtml(row.doc_no || '')}</td>
-                    <td>${escapeHtml(row.requester || '')}</td>
-                    <td>${escapeHtml(row.p_name || '')}</td>
-                    <td>${escapeHtml(row.p_code || '')}</td>
-                    <td>${escapeHtml(row.name || '')}</td>
-                    <td>${escapeHtml(row.spec || '')}</td>
-                    <td>${row.qty || 0}</td>
-                    <td>${row.uploaded_at ? new Date(row.uploaded_at).toLocaleString('ko-KR') : ''}</td>
-                </tr>`;
+            data.forEach(function (row) {
+                html += '<tr>' +
+                    '<td>' + escapeHtml(row.doc_no || '') + '</td>' +
+                    '<td>' + escapeHtml(row.requester || '') + '</td>' +
+                    '<td>' + escapeHtml(row.p_name || '') + '</td>' +
+                    '<td>' + escapeHtml(row.p_code || '') + '</td>' +
+                    '<td>' + escapeHtml(row.name || '') + '</td>' +
+                    '<td>' + escapeHtml(row.spec || '') + '</td>' +
+                    '<td>' + (row.qty || 0) + '</td>' +
+                    '<td>' + (row.uploaded_at ? new Date(row.uploaded_at).toLocaleString('ko-KR') : '') + '</td>' +
+                    '</tr>';
             });
             html += '</tbody></table></div>';
-            html += `<p style="margin-top:12px;color:var(--text-muted);font-size:13px;">총 ${data.length}건</p>`;
+            html += '<p style="margin-top:12px;color:var(--text-muted);font-size:13px;">총 ' + data.length + '건</p>';
             historyContent.innerHTML = html;
         } catch (err) {
             console.error(err);
-            historyContent.innerHTML = `<div class="empty-state" style="color:var(--danger);">❌ 조회 실패: ${escapeHtml(err.message || String(err))}</div>`;
+            historyContent.innerHTML = '<div class="empty-state" style="color:var(--danger);">❌ 조회 실패: ' + escapeHtml(err.message || String(err)) + '</div>';
         }
     }
 
-    // ======================================================
-    // 토스트
-    // ======================================================
+    // --- 토스트 ---
     let toastTimer;
-    function showToast(msg, type = '') {
+    function showToast(msg, type) {
         const toast = document.getElementById('toast');
         toast.textContent = msg;
-        toast.className = 'toast show ' + type;
+        toast.className = 'toast show ' + (type || '');
         clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
+        toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 3500);
     }
+})();
 </script>
 </body>
 </html>

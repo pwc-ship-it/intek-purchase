@@ -2,20 +2,81 @@
 // 엔드포인트: POST /api/extract
 // Body: { text: string }
 // Response: { doc_no, user, items: [...] }
+//
+// 503/429 에러 시 자동 재시도 포함 (최대 3회, 지수 백오프)
+// 주 모델 계속 실패 시 fallback 모델로 자동 전환
+
+const MODEL = 'gemini-2.5-flash';
+const FALLBACK_MODEL = 'gemini-2.0-flash';
+const MAX_RETRIES = 3;
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function callGemini(model, prompt, apiKey) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: 'application/json',
+      },
+    }),
+  });
+}
+
+async function callGeminiWithRetry(prompt, apiKey) {
+  let lastError = null;
+
+  // 1단계: 주 모델 재시도
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await callGemini(MODEL, prompt, apiKey);
+
+      if (res.ok) return { res, model: MODEL };
+
+      if (res.status >= 500 || res.status === 429) {
+        const text = await res.text();
+        lastError = { status: res.status, text, model: MODEL };
+        console.warn(`[${MODEL}] ${attempt}/${MAX_RETRIES} 실패 (${res.status})`);
+        if (attempt < MAX_RETRIES) {
+          await sleep(1000 * Math.pow(2, attempt - 1));
+          continue;
+        }
+      } else {
+        const text = await res.text();
+        return { res: null, error: { status: res.status, text, model: MODEL } };
+      }
+    } catch (e) {
+      console.warn(`[${MODEL}] 네트워크 에러: ${e.message}`);
+      lastError = { status: 0, text: e.message, model: MODEL };
+      if (attempt < MAX_RETRIES) await sleep(1000 * Math.pow(2, attempt - 1));
+    }
+  }
+
+  // 2단계: fallback 모델 시도
+  console.warn(`주 모델 실패. ${FALLBACK_MODEL}로 fallback...`);
+  try {
+    const res = await callGemini(FALLBACK_MODEL, prompt, apiKey);
+    if (res.ok) return { res, model: FALLBACK_MODEL };
+    const text = await res.text();
+    return { res: null, error: { status: res.status, text, model: FALLBACK_MODEL } };
+  } catch (e) {
+    return { res: null, error: lastError || { status: 0, text: e.message, model: FALLBACK_MODEL } };
+  }
+}
 
 export default async function handler(req, res) {
-  // CORS (같은 도메인에서만 쓸 거지만 혹시 몰라서)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
     const { text } = req.body || {};
@@ -28,7 +89,6 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: '서버에 GEMINI_API_KEY가 설정되지 않았습니다.' });
     }
 
-    // 텍스트 길이 제한 (토큰 폭주 방지)
     const trimmed = text.replace(/\s+/g, ' ').trim().substring(0, 30000);
 
     const prompt = `아래 품의서 텍스트에서 다음 정보를 JSON으로만 추출하세요. 설명, 마크다운, 코드블록 없이 순수 JSON 객체만 출력하세요.
@@ -57,27 +117,25 @@ export default async function handler(req, res) {
 품의서 데이터:
 ${trimmed}`;
 
-    // Gemini 2.5 Flash 호출 (structured output 지원)
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+    const { res: geminiRes, error: geminiErr, model: usedModel } = await callGeminiWithRetry(prompt, API_KEY);
 
-    const geminiRes = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: 'application/json',
-        },
-      }),
-    });
+    if (geminiErr || !geminiRes) {
+      const detail = geminiErr || { status: 0, text: 'unknown' };
+      console.error('Gemini 최종 실패:', detail);
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      console.error('Gemini API error:', geminiRes.status, errText);
+      let userMsg = `Gemini API 오류 (${detail.status})`;
+      if (detail.status === 503) {
+        userMsg = 'Gemini 서버가 일시적으로 과부하입니다. 1~2분 후 다시 시도해 주세요.';
+      } else if (detail.status === 429) {
+        userMsg = 'API 호출 한도를 초과했습니다. 잠시 후 다시 시도해 주세요.';
+      } else if (detail.status === 403) {
+        userMsg = 'Gemini API 키 권한 오류입니다. Vercel 환경변수를 확인하세요.';
+      }
+
       return res.status(502).json({
-        error: `Gemini API 오류 (${geminiRes.status})`,
-        detail: errText.substring(0, 500),
+        error: userMsg,
+        detail: String(detail.text).substring(0, 500),
+        model: detail.model,
       });
     }
 
@@ -92,7 +150,6 @@ ${trimmed}`;
 
     const aiText = geminiData.candidates[0].content?.parts?.[0]?.text || '';
 
-    // JSON 파싱 (응답이 이미 JSON이어야 하지만 안전장치)
     let parsed;
     try {
       parsed = JSON.parse(aiText);
@@ -107,7 +164,6 @@ ${trimmed}`;
       parsed = JSON.parse(match[0]);
     }
 
-    // 정규화
     const result = {
       doc_no: String(parsed.doc_no || '').trim(),
       user: String(parsed.user || '').trim(),
@@ -120,6 +176,7 @@ ${trimmed}`;
             qty: Number(it.qty) || 0,
           }))
         : [],
+      _model: usedModel,
     };
 
     return res.status(200).json(result);

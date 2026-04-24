@@ -22,15 +22,15 @@
         body {
             font-family: 'Malgun Gothic', -apple-system, BlinkMacSystemFont, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 16px;
             background-color: var(--bg);
             color: var(--text);
         }
         .container {
-            max-width: 1100px;
+            max-width: 1600px;
             margin: auto;
             background: var(--card);
-            padding: 32px;
+            padding: 28px 32px;
             border-radius: 16px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.08);
         }
@@ -38,7 +38,7 @@
             color: var(--primary);
             text-align: center;
             border-bottom: 2px solid var(--border);
-            padding-bottom: 16px;
+            padding-bottom: 14px;
             margin-top: 0;
         }
         .tabs {
@@ -64,6 +64,7 @@
         }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+
         .upload-card {
             border: 3px dashed var(--primary);
             background: #f8fbff;
@@ -74,10 +75,9 @@
             transition: all 0.2s;
         }
         .upload-card:hover,
-        .upload-card.dragover {
-            background: #e8f0fe;
-        }
+        .upload-card.dragover { background: #e8f0fe; }
         .upload-card h3 { margin: 0 0 16px 0; }
+
         .btn {
             padding: 10px 20px;
             border: none;
@@ -92,7 +92,10 @@
         .btn-success { background: var(--success); color: white; }
         .btn-success:hover { opacity: 0.9; }
         .btn-danger { background: var(--danger); color: white; padding: 6px 12px; font-size: 12px; }
+        .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+        .btn-ghost:hover { background: var(--bg); }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
         .loading {
             display: none;
             color: var(--warning);
@@ -101,6 +104,7 @@
             margin: 16px 0;
         }
         .loading.show { display: block; }
+
         .info-header {
             background: #f8f9fa;
             padding: 16px 20px;
@@ -114,6 +118,7 @@
         }
         .info-header.show { display: flex; }
         .info-header span.value { color: var(--primary); margin-left: 6px; }
+
         .table-wrapper {
             overflow-x: auto;
             margin-top: 16px;
@@ -123,22 +128,26 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 800px;
+            table-layout: auto;
         }
         th, td {
             border-bottom: 1px solid var(--border);
             padding: 10px 12px;
             text-align: center;
-            font-size: 14px;
+            font-size: 13px;
+            white-space: nowrap;
         }
+        td.wrap { white-space: normal; word-break: break-word; }
         th {
             background-color: #5f6368;
             color: white;
             font-weight: 600;
+            white-space: nowrap;
         }
         tbody tr:hover { background: #fafbfc; }
         input.cell {
             width: 100%;
+            min-width: 80px;
             padding: 6px 8px;
             border: 1px solid transparent;
             border-radius: 4px;
@@ -151,6 +160,7 @@
             border-color: var(--primary);
             background: #f8fbff;
         }
+
         .action-bar {
             display: flex;
             gap: 12px;
@@ -158,6 +168,7 @@
             justify-content: flex-end;
         }
         .action-bar .btn { padding: 12px 24px; font-size: 15px; }
+
         .toast {
             position: fixed;
             top: 24px;
@@ -167,7 +178,7 @@
             padding: 14px 20px;
             border-radius: 8px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-            z-index: 9999;
+            z-index: 10000;
             opacity: 0;
             transform: translateY(-10px);
             transition: all 0.3s;
@@ -176,24 +187,114 @@
         .toast.show { opacity: 1; transform: translateY(0); }
         .toast.success { background: var(--success); }
         .toast.error { background: var(--danger); }
-        .filter-bar {
-            display: flex;
-            gap: 12px;
+
+        /* 검색 영역 */
+        .search-box {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 10px;
             margin-bottom: 16px;
-            flex-wrap: wrap;
         }
-        .filter-bar input {
+        .search-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+        }
+        .search-grid input {
             padding: 8px 12px;
             border: 1px solid var(--border);
             border-radius: 6px;
-            font-size: 14px;
-            flex: 1;
-            min-width: 180px;
+            font-size: 13px;
+            background: white;
         }
+        .search-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
+
+        /* 링크 스타일 */
+        .link {
+            color: var(--primary);
+            text-decoration: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .link:hover { text-decoration: underline; }
+
         .empty-state {
             text-align: center;
             padding: 48px 20px;
             color: var(--text-muted);
+        }
+
+        .arrival-pending { color: var(--text-muted); font-style: italic; }
+        .arrival-set { color: var(--success); font-weight: 600; }
+
+        /* 모달 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 40px 20px;
+            overflow-y: auto;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 28px;
+            width: 100%;
+            max-width: 1200px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--border);
+        }
+        .modal-title { color: var(--primary); margin: 0; font-size: 20px; }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: var(--text-muted);
+            line-height: 1;
+        }
+        .modal-close:hover { color: var(--danger); }
+        .modal-body-section { margin-bottom: 20px; }
+        .modal-body-section h4 { margin: 0 0 12px 0; color: var(--text); }
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px 24px;
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 8px;
+        }
+        .meta-item { font-size: 14px; }
+        .meta-label { color: var(--text-muted); display: block; font-size: 12px; margin-bottom: 2px; }
+        .meta-value { font-weight: 600; }
+        .arrival-input-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 8px;
+        }
+        .arrival-input-row input[type="date"] {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -207,6 +308,7 @@
         <button class="tab" data-tab="history">📋 저장된 구매 리스트</button>
     </div>
 
+    <!-- 업로드 탭 -->
     <div id="tab-upload" class="tab-content active">
         <div class="upload-card" id="dropZone">
             <h3>📄 품의서 HTML 파일을 드래그하거나 클릭하세요</h3>
@@ -217,7 +319,8 @@
 
         <div id="infoArea" class="info-header">
             <div>문서번호: <span class="value" id="doc_no">-</span></div>
-            <div>신청자: <span class="value" id="doc_requester">-</span></div>
+            <div>기안자: <span class="value" id="doc_requester">-</span></div>
+            <div>기안일: <span class="value" id="doc_drafted">-</span></div>
             <div>품목 수: <span class="value" id="item_count">0</span></div>
         </div>
 
@@ -225,12 +328,12 @@
             <table>
                 <thead>
                     <tr>
-                        <th style="width:18%">프로젝트명</th>
-                        <th style="width:12%">코드</th>
-                        <th style="width:25%">품명</th>
-                        <th style="width:25%">규격</th>
-                        <th style="width:10%">수량</th>
-                        <th style="width:10%">작업</th>
+                        <th style="min-width:180px">프로젝트명</th>
+                        <th style="min-width:130px">코드</th>
+                        <th style="min-width:200px">품명</th>
+                        <th style="min-width:200px">규격</th>
+                        <th style="min-width:70px">수량</th>
+                        <th style="min-width:80px">작업</th>
                     </tr>
                 </thead>
                 <tbody id="resultBody"></tbody>
@@ -243,14 +346,86 @@
         </div>
     </div>
 
+    <!-- 조회 탭 -->
     <div id="tab-history" class="tab-content">
-        <div class="filter-bar">
-            <input type="text" id="searchDoc" placeholder="🔍 문서번호 검색">
-            <input type="text" id="searchName" placeholder="🔍 품명 검색">
-            <button class="btn btn-primary" id="refreshBtn">새로고침</button>
+        <div class="search-box">
+            <div class="search-grid">
+                <input type="text" id="searchDoc"      placeholder="🔍 문서번호">
+                <input type="text" id="searchRequester" placeholder="🔍 기안자">
+                <input type="text" id="searchProject"  placeholder="🔍 프로젝트명 (부분일치)">
+                <input type="text" id="searchCode"     placeholder="🔍 코드">
+                <input type="text" id="searchName"     placeholder="🔍 품명">
+                <input type="text" id="searchSpec"     placeholder="🔍 규격">
+                <input type="date" id="searchDateFrom" title="기안일 시작">
+                <input type="date" id="searchDateTo"   title="기안일 종료">
+            </div>
+            <div class="search-actions">
+                <button class="btn btn-ghost" id="resetBtn">초기화</button>
+                <button class="btn btn-primary" id="refreshBtn">🔍 검색</button>
+            </div>
         </div>
+
         <div id="historyContent">
-            <div class="empty-state">조회 버튼을 눌러 저장된 데이터를 불러오세요.</div>
+            <div class="empty-state">검색 버튼을 눌러 저장된 데이터를 불러오세요.</div>
+        </div>
+    </div>
+</div>
+
+<!-- 상세 팝업 -->
+<div class="modal-overlay" id="detailModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modalTitle">문서 상세</h3>
+            <button class="modal-close" id="modalClose">×</button>
+        </div>
+        <div class="modal-body-section">
+            <h4>📑 문서 정보</h4>
+            <div class="meta-grid">
+                <div class="meta-item">
+                    <span class="meta-label">문서번호</span>
+                    <span class="meta-value" id="mDocNo">-</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">기안자</span>
+                    <span class="meta-value" id="mRequester">-</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">기안일</span>
+                    <span class="meta-value" id="mDrafted">-</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">품목 수</span>
+                    <span class="meta-value" id="mItemCount">0</span>
+                </div>
+            </div>
+        </div>
+        <div class="modal-body-section">
+            <h4>📅 입고예상일</h4>
+            <div class="arrival-input-row">
+                <input type="date" id="mArrival">
+                <button class="btn btn-success" id="mSaveArrival">💾 저장</button>
+                <button class="btn btn-ghost" id="mClearArrival">지우기</button>
+            </div>
+        </div>
+        <div class="modal-body-section">
+            <h4>📦 품목 리스트</h4>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="min-width:180px">프로젝트명</th>
+                            <th style="min-width:130px">코드</th>
+                            <th style="min-width:220px">품명</th>
+                            <th style="min-width:220px">규격</th>
+                            <th style="min-width:70px">수량</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mItemBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="action-bar">
+            <button class="btn btn-danger" id="mDeleteDoc">🗑 이 문서 전체 삭제</button>
         </div>
     </div>
 </div>
@@ -261,16 +436,16 @@
 // ==========================================================
 // 🔧 Supabase 설정 — 아래 두 줄만 본인 값으로 교체하세요
 // ==========================================================
-const SUPABASE_URL = 'https://kiyztxxvynsrjusqlirt.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtpeXp0eHh2eW5zcmp1c3FsaXJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MzEwOTksImV4cCI6MjA5MjMwNzA5OX0.26rUt3fnWIKrTa_lQiIphaMO6ggoXAswhEE1g9iZ7_Y';
+const SUPABASE_URL = 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR-ANON-KEY';
 // ==========================================================
 
 (function () {
     'use strict';
 
-    const TABLE_NAME = 'purchase_items';
+    const ITEMS_TABLE = 'purchase_items';
+    const DOCS_TABLE  = 'purchase_documents';
 
-    // Supabase 클라이언트 초기화
     let sb = null;
     try {
         sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -278,39 +453,43 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         console.error('Supabase 초기화 실패:', e);
     }
 
-    // 상태
+    // 업로드 상태
     let currentDocNo = '';
     let currentUser = '';
+    let currentDrafted = '';
+
+    // 모달 상태
+    let modalDocNo = '';
 
     // DOM
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    const loading = document.getElementById('loading');
-    const infoArea = document.getElementById('infoArea');
-    const resultWrapper = document.getElementById('resultWrapper');
-    const resultBody = document.getElementById('resultBody');
-    const actionBar = document.getElementById('actionBar');
-    const addRowBtn = document.getElementById('addRowBtn');
-    const saveBtn = document.getElementById('saveBtn');
-    const refreshBtn = document.getElementById('refreshBtn');
+    const $ = (id) => document.getElementById(id);
+    const dropZone = $('dropZone');
+    const fileInput = $('fileInput');
+    const loading = $('loading');
+    const infoArea = $('infoArea');
+    const resultWrapper = $('resultWrapper');
+    const resultBody = $('resultBody');
+    const actionBar = $('actionBar');
+    const addRowBtn = $('addRowBtn');
+    const saveBtn = $('saveBtn');
 
-    // --- 탭 ---
+    // ---------- 탭 ----------
     document.querySelectorAll('.tab').forEach(function (tab) {
         tab.addEventListener('click', function () {
-            document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
-            document.querySelectorAll('.tab-content').forEach(function (c) { c.classList.remove('active'); });
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             tab.classList.add('active');
-            document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+            $('tab-' + tab.dataset.tab).classList.add('active');
             if (tab.dataset.tab === 'history') loadHistory();
         });
     });
 
-    // --- 드래그앤드롭 ---
+    // ---------- 드래그앤드롭 ----------
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function (ev) {
         window.addEventListener(ev, function (e) { e.preventDefault(); e.stopPropagation(); }, false);
     });
-    dropZone.addEventListener('dragover', function () { dropZone.classList.add('dragover'); });
-    dropZone.addEventListener('dragleave', function () { dropZone.classList.remove('dragover'); });
+    dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
     dropZone.addEventListener('drop', function (e) {
         dropZone.classList.remove('dragover');
         if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
@@ -322,12 +501,15 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         if (e.target.files.length) handleFile(e.target.files[0]);
     });
 
-    // --- 버튼 이벤트 ---
-    addRowBtn.addEventListener('click', function () { appendRow({}); });
+    addRowBtn.addEventListener('click', () => appendRow({}));
     saveBtn.addEventListener('click', saveToSupabase);
-    refreshBtn.addEventListener('click', loadHistory);
+    $('refreshBtn').addEventListener('click', loadHistory);
+    $('resetBtn').addEventListener('click', resetSearch);
+    ['searchDoc','searchRequester','searchProject','searchCode','searchName','searchSpec','searchDateFrom','searchDateTo'].forEach(function (id) {
+        $(id).addEventListener('keydown', function (e) { if (e.key === 'Enter') loadHistory(); });
+    });
 
-    // --- 파일 처리 ---
+    // ---------- 파일 처리 ----------
     async function handleFile(file) {
         loading.classList.add('show');
         try {
@@ -335,7 +517,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             const cleanText = (doc.body ? doc.body.innerText : '').replace(/\s+/g, ' ').trim();
-
             if (!cleanText) throw new Error('HTML에서 텍스트를 추출할 수 없습니다.');
 
             const res = await fetch('/api/extract', {
@@ -358,17 +539,19 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         }
     }
 
-    // --- 테이블 렌더링 ---
     function renderData(data) {
-        currentDocNo = data.doc_no || '';
-        currentUser = data.user || '';
-        document.getElementById('doc_no').innerText = currentDocNo || '-';
-        document.getElementById('doc_requester').innerText = currentUser || '-';
-        document.getElementById('item_count').innerText = data.items.length;
+        currentDocNo   = data.doc_no || '';
+        currentUser    = data.user || '';
+        currentDrafted = data.drafted_at || '';
+
+        $('doc_no').innerText        = currentDocNo || '-';
+        $('doc_requester').innerText = currentUser || '-';
+        $('doc_drafted').innerText   = currentDrafted || '-';
+        $('item_count').innerText    = data.items.length;
         infoArea.classList.add('show');
 
         resultBody.innerHTML = '';
-        (data.items || []).forEach(function (item) { appendRow(item); });
+        (data.items || []).forEach(item => appendRow(item));
         resultWrapper.style.display = 'block';
         actionBar.style.display = 'flex';
     }
@@ -379,11 +562,10 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         tr.innerHTML =
             '<td><input class="cell" data-k="p_name" value="' + escapeHtml(item.p_name || '') + '"></td>' +
             '<td><input class="cell" data-k="p_code" value="' + escapeHtml(item.p_code || '') + '"></td>' +
-            '<td><input class="cell" data-k="name" value="' + escapeHtml(item.name || '') + '"></td>' +
-            '<td><input class="cell" data-k="spec" value="' + escapeHtml(item.spec || '') + '"></td>' +
+            '<td><input class="cell" data-k="name" value="'   + escapeHtml(item.name || '')   + '"></td>' +
+            '<td><input class="cell" data-k="spec" value="'   + escapeHtml(item.spec || '')   + '"></td>' +
             '<td><input class="cell" data-k="qty" type="number" min="0" value="' + (item.qty || 0) + '"></td>' +
             '<td><button class="btn btn-danger" type="button">삭제</button></td>';
-        // 삭제 버튼
         tr.querySelector('.btn-danger').addEventListener('click', function () {
             tr.remove();
             updateCount();
@@ -393,50 +575,44 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     }
 
     function updateCount() {
-        document.getElementById('item_count').innerText = resultBody.querySelectorAll('tr').length;
+        $('item_count').innerText = resultBody.querySelectorAll('tr').length;
     }
 
     function escapeHtml(str) {
         return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
     }
 
-    // --- 저장 (중복 문서번호면 거부) ---
+    // ---------- 저장 ----------
     async function saveToSupabase() {
-        if (!sb) {
-            showToast('Supabase 연결이 설정되지 않았습니다.', 'error');
-            return;
-        }
-        if (!currentDocNo) {
-            showToast('문서번호가 비어 있습니다.', 'error');
-            return;
-        }
+        if (!sb)            return showToast('Supabase 연결이 설정되지 않았습니다.', 'error');
+        if (!currentDocNo)  return showToast('문서번호가 비어 있습니다.', 'error');
         const rows = resultBody.querySelectorAll('tr');
-        if (rows.length === 0) {
-            showToast('저장할 품목이 없습니다.', 'error');
-            return;
-        }
+        if (rows.length === 0) return showToast('저장할 품목이 없습니다.', 'error');
 
         saveBtn.disabled = true;
         try {
-            // 1) 중복 검사
-            const check = await sb
-                .from(TABLE_NAME)
+            // 1) 중복 검사 (items 기준)
+            const check = await sb.from(ITEMS_TABLE)
                 .select('id', { count: 'exact', head: true })
                 .eq('doc_no', currentDocNo);
-
             if (check.error) throw check.error;
-
             if (check.count && check.count > 0) {
                 showToast('⚠️ 문서번호가 중복되어 업로드 되지 않습니다. (' + currentDocNo + ')', 'error');
                 return;
             }
 
-            // 2) 데이터 구성
+            // 2) purchase_documents 에 문서 메타 저장 (upsert)
+            const docRow = {
+                doc_no: currentDocNo,
+                requester: currentUser,
+                drafted_at: currentDrafted || null
+            };
+            const docRes = await sb.from(DOCS_TABLE).upsert(docRow, { onConflict: 'doc_no' });
+            if (docRes.error) throw docRes.error;
+
+            // 3) purchase_items 에 품목 저장
             const items = Array.from(rows).map(function (tr) {
                 const obj = {
                     doc_no: currentDocNo,
@@ -450,15 +626,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
                 return obj;
             });
 
-            // 3) 삽입
-            const ins = await sb.from(TABLE_NAME).insert(items);
-            if (ins.error) {
-                if (ins.error.code === '23505') {
-                    showToast('⚠️ 문서번호가 중복되어 업로드 되지 않습니다. (' + currentDocNo + ')', 'error');
-                    return;
-                }
-                throw ins.error;
-            }
+            const ins = await sb.from(ITEMS_TABLE).insert(items);
+            if (ins.error) throw ins.error;
 
             showToast('✅ ' + items.length + '건이 저장되었습니다. (문서: ' + currentDocNo + ')', 'success');
         } catch (err) {
@@ -469,64 +638,216 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         }
     }
 
-    // --- 조회 ---
+    // ---------- 조회 ----------
+    function resetSearch() {
+        ['searchDoc','searchRequester','searchProject','searchCode','searchName','searchSpec','searchDateFrom','searchDateTo']
+            .forEach(id => $(id).value = '');
+        loadHistory();
+    }
+
     async function loadHistory() {
-        const historyContent = document.getElementById('historyContent');
+        const historyContent = $('historyContent');
         if (!sb) {
             historyContent.innerHTML = '<div class="empty-state">Supabase 연결이 설정되지 않았습니다.</div>';
             return;
         }
         historyContent.innerHTML = '<div class="empty-state">⏳ 불러오는 중...</div>';
 
-        const docQuery = document.getElementById('searchDoc').value.trim();
-        const nameQuery = document.getElementById('searchName').value.trim();
+        const q = {
+            doc:       $('searchDoc').value.trim(),
+            requester: $('searchRequester').value.trim(),
+            project:   $('searchProject').value.trim(),
+            code:      $('searchCode').value.trim(),
+            name:      $('searchName').value.trim(),
+            spec:      $('searchSpec').value.trim(),
+            dateFrom:  $('searchDateFrom').value,
+            dateTo:    $('searchDateTo').value
+        };
 
         try {
-            let query = sb.from(TABLE_NAME).select('*').order('uploaded_at', { ascending: false }).limit(500);
-            if (docQuery) query = query.ilike('doc_no', '%' + docQuery + '%');
-            if (nameQuery) query = query.ilike('name', '%' + nameQuery + '%');
+            // 1. items 먼저 필터해서 해당하는 doc_no 수집
+            let itemQ = sb.from(ITEMS_TABLE).select('doc_no,p_name,p_code,name,spec,qty,requester,uploaded_at');
+            if (q.doc)       itemQ = itemQ.ilike('doc_no', '%' + q.doc + '%');
+            if (q.requester) itemQ = itemQ.ilike('requester', '%' + q.requester + '%');
+            if (q.project)   itemQ = itemQ.ilike('p_name', '%' + q.project + '%');
+            if (q.code)      itemQ = itemQ.ilike('p_code', '%' + q.code + '%');
+            if (q.name)      itemQ = itemQ.ilike('name', '%' + q.name + '%');
+            if (q.spec)      itemQ = itemQ.ilike('spec', '%' + q.spec + '%');
+            const itemRes = await itemQ.limit(5000);
+            if (itemRes.error) throw itemRes.error;
+            const items = itemRes.data || [];
 
-            const { data, error } = await query;
-            if (error) throw error;
-
-            if (!data || data.length === 0) {
-                historyContent.innerHTML = '<div class="empty-state">저장된 데이터가 없습니다.</div>';
+            // 2. 관련 doc_no 추출
+            const docNos = Array.from(new Set(items.map(i => i.doc_no)));
+            if (docNos.length === 0) {
+                historyContent.innerHTML = '<div class="empty-state">조건에 맞는 데이터가 없습니다.</div>';
                 return;
             }
 
+            // 3. 문서 메타 조회 (+ 기안일 기간 필터)
+            let docQ = sb.from(DOCS_TABLE).select('*').in('doc_no', docNos);
+            if (q.dateFrom) docQ = docQ.gte('drafted_at', q.dateFrom);
+            if (q.dateTo)   docQ = docQ.lte('drafted_at', q.dateTo);
+            const docRes = await docQ.order('drafted_at', { ascending: false, nullsFirst: false });
+            if (docRes.error) throw docRes.error;
+            const docs = docRes.data || [];
+
+            if (docs.length === 0) {
+                historyContent.innerHTML = '<div class="empty-state">조건에 맞는 문서가 없습니다.</div>';
+                return;
+            }
+
+            // 4. 문서별 품목 그룹화
+            const itemsByDoc = {};
+            items.forEach(i => {
+                if (!itemsByDoc[i.doc_no]) itemsByDoc[i.doc_no] = [];
+                itemsByDoc[i.doc_no].push(i);
+            });
+
+            // 5. 테이블 렌더링
             let html = '<div class="table-wrapper"><table><thead><tr>' +
-                '<th>문서번호</th><th>신청자</th><th>프로젝트명</th><th>코드</th>' +
-                '<th>품명</th><th>규격</th><th>수량</th><th>업로드일시</th>' +
+                '<th style="min-width:170px">문서번호</th>' +
+                '<th style="min-width:80px">기안자</th>' +
+                '<th style="min-width:110px">기안일</th>' +
+                '<th style="min-width:120px">입고예상일</th>' +
+                '<th style="min-width:70px">품목수</th>' +
+                '<th style="min-width:250px">대표 프로젝트/품목</th>' +
                 '</tr></thead><tbody>';
-            data.forEach(function (row) {
+
+            docs.forEach(function (d) {
+                const docItems = itemsByDoc[d.doc_no] || [];
+                const firstItem = docItems[0] || {};
+                const preview = (firstItem.p_name || '-') + ' · ' + (firstItem.name || '-') +
+                                (docItems.length > 1 ? ' 외 ' + (docItems.length - 1) + '건' : '');
+                const arrivalHtml = d.expected_arrival
+                    ? '<span class="arrival-set">' + d.expected_arrival + '</span>'
+                    : '<span class="arrival-pending">미정</span>';
+
                 html += '<tr>' +
-                    '<td>' + escapeHtml(row.doc_no || '') + '</td>' +
-                    '<td>' + escapeHtml(row.requester || '') + '</td>' +
-                    '<td>' + escapeHtml(row.p_name || '') + '</td>' +
-                    '<td>' + escapeHtml(row.p_code || '') + '</td>' +
-                    '<td>' + escapeHtml(row.name || '') + '</td>' +
-                    '<td>' + escapeHtml(row.spec || '') + '</td>' +
-                    '<td>' + (row.qty || 0) + '</td>' +
-                    '<td>' + (row.uploaded_at ? new Date(row.uploaded_at).toLocaleString('ko-KR') : '') + '</td>' +
+                    '<td><a class="link" data-doc="' + escapeHtml(d.doc_no) + '">' + escapeHtml(d.doc_no) + '</a></td>' +
+                    '<td>' + escapeHtml(d.requester || '-') + '</td>' +
+                    '<td>' + (d.drafted_at || '-') + '</td>' +
+                    '<td>' + arrivalHtml + '</td>' +
+                    '<td>' + docItems.length + '</td>' +
+                    '<td class="wrap" style="text-align:left">' + escapeHtml(preview) + '</td>' +
                     '</tr>';
             });
+
             html += '</tbody></table></div>';
-            html += '<p style="margin-top:12px;color:var(--text-muted);font-size:13px;">총 ' + data.length + '건</p>';
+            html += '<p style="margin-top:12px;color:var(--text-muted);font-size:13px;">총 문서 ' + docs.length + '건 / 품목 ' + items.length + '건</p>';
             historyContent.innerHTML = html;
+
+            // 링크 이벤트
+            historyContent.querySelectorAll('.link[data-doc]').forEach(function (a) {
+                a.addEventListener('click', function () { openDetail(a.dataset.doc); });
+            });
+
         } catch (err) {
             console.error(err);
             historyContent.innerHTML = '<div class="empty-state" style="color:var(--danger);">❌ 조회 실패: ' + escapeHtml(err.message || String(err)) + '</div>';
         }
     }
 
-    // --- 토스트 ---
+    // ---------- 상세 팝업 ----------
+    async function openDetail(docNo) {
+        if (!sb) return;
+        modalDocNo = docNo;
+        try {
+            const [docRes, itemsRes] = await Promise.all([
+                sb.from(DOCS_TABLE).select('*').eq('doc_no', docNo).maybeSingle(),
+                sb.from(ITEMS_TABLE).select('*').eq('doc_no', docNo)
+            ]);
+            if (docRes.error)   throw docRes.error;
+            if (itemsRes.error) throw itemsRes.error;
+
+            const doc = docRes.data || { doc_no: docNo };
+            const items = itemsRes.data || [];
+
+            $('modalTitle').innerText = '📄 ' + docNo;
+            $('mDocNo').innerText     = doc.doc_no || docNo;
+            $('mRequester').innerText = doc.requester || (items[0] && items[0].requester) || '-';
+            $('mDrafted').innerText   = doc.drafted_at || '-';
+            $('mItemCount').innerText = items.length;
+            $('mArrival').value       = doc.expected_arrival || '';
+
+            const body = $('mItemBody');
+            body.innerHTML = '';
+            items.forEach(function (it) {
+                const tr = document.createElement('tr');
+                tr.innerHTML =
+                    '<td class="wrap" style="text-align:left">' + escapeHtml(it.p_name || '') + '</td>' +
+                    '<td>' + escapeHtml(it.p_code || '') + '</td>' +
+                    '<td class="wrap" style="text-align:left">' + escapeHtml(it.name || '') + '</td>' +
+                    '<td class="wrap" style="text-align:left">' + escapeHtml(it.spec || '') + '</td>' +
+                    '<td>' + (it.qty || 0) + '</td>';
+                body.appendChild(tr);
+            });
+
+            $('detailModal').classList.add('show');
+        } catch (err) {
+            console.error(err);
+            showToast('❌ 상세 조회 실패: ' + err.message, 'error');
+        }
+    }
+
+    $('modalClose').addEventListener('click', () => $('detailModal').classList.remove('show'));
+    $('detailModal').addEventListener('click', function (e) {
+        if (e.target === $('detailModal')) $('detailModal').classList.remove('show');
+    });
+
+    $('mSaveArrival').addEventListener('click', async function () {
+        if (!sb || !modalDocNo) return;
+        const val = $('mArrival').value || null;
+        try {
+            const res = await sb.from(DOCS_TABLE).upsert({ doc_no: modalDocNo, expected_arrival: val }, { onConflict: 'doc_no' });
+            if (res.error) throw res.error;
+            showToast('✅ 입고예상일이 저장되었습니다.', 'success');
+            loadHistory();
+        } catch (err) {
+            console.error(err);
+            showToast('❌ 저장 실패: ' + err.message, 'error');
+        }
+    });
+
+    $('mClearArrival').addEventListener('click', async function () {
+        if (!sb || !modalDocNo) return;
+        try {
+            const res = await sb.from(DOCS_TABLE).update({ expected_arrival: null }).eq('doc_no', modalDocNo);
+            if (res.error) throw res.error;
+            $('mArrival').value = '';
+            showToast('입고예상일이 지워졌습니다.', 'success');
+            loadHistory();
+        } catch (err) {
+            console.error(err);
+            showToast('❌ 삭제 실패: ' + err.message, 'error');
+        }
+    });
+
+    $('mDeleteDoc').addEventListener('click', async function () {
+        if (!sb || !modalDocNo) return;
+        if (!confirm('문서 ' + modalDocNo + ' 과 관련된 모든 품목을 삭제할까요?\n이 작업은 되돌릴 수 없습니다.')) return;
+        try {
+            const r1 = await sb.from(ITEMS_TABLE).delete().eq('doc_no', modalDocNo);
+            if (r1.error) throw r1.error;
+            const r2 = await sb.from(DOCS_TABLE).delete().eq('doc_no', modalDocNo);
+            if (r2.error) throw r2.error;
+            showToast('🗑 문서가 삭제되었습니다.', 'success');
+            $('detailModal').classList.remove('show');
+            loadHistory();
+        } catch (err) {
+            console.error(err);
+            showToast('❌ 삭제 실패: ' + err.message, 'error');
+        }
+    });
+
+    // ---------- 토스트 ----------
     let toastTimer;
     function showToast(msg, type) {
-        const toast = document.getElementById('toast');
+        const toast = $('toast');
         toast.textContent = msg;
         toast.className = 'toast show ' + (type || '');
         clearTimeout(toastTimer);
-        toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 3500);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
     }
 })();
 </script>

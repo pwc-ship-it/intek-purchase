@@ -1,9 +1,9 @@
 // Vercel Serverless Function
 // 엔드포인트: POST /api/extract
 // Body: { text: string }
-// Response: { doc_no, user, items: [...] }
+// Response: { doc_no, user, drafted_at, items: [...] }
 //
-// 503/429 에러 시 자동 재시도 포함 (최대 3회, 지수 백오프)
+// 503/429 에러 시 자동 재시도 (최대 3회, 지수 백오프)
 // 주 모델 계속 실패 시 fallback 모델로 자동 전환
 
 const MODEL = 'gemini-2.5-flash';
@@ -32,11 +32,9 @@ async function callGemini(model, prompt, apiKey) {
 async function callGeminiWithRetry(prompt, apiKey) {
   let lastError = null;
 
-  // 1단계: 주 모델 재시도
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const res = await callGemini(MODEL, prompt, apiKey);
-
       if (res.ok) return { res, model: MODEL };
 
       if (res.status >= 500 || res.status === 429) {
@@ -58,7 +56,6 @@ async function callGeminiWithRetry(prompt, apiKey) {
     }
   }
 
-  // 2단계: fallback 모델 시도
   console.warn(`주 모델 실패. ${FALLBACK_MODEL}로 fallback...`);
   try {
     const res = await callGemini(FALLBACK_MODEL, prompt, apiKey);
@@ -68,6 +65,19 @@ async function callGeminiWithRetry(prompt, apiKey) {
   } catch (e) {
     return { res: null, error: lastError || { status: 0, text: e.message, model: FALLBACK_MODEL } };
   }
+}
+
+// 기안일자 문자열 정규화: '2026-04-07(화)' 또는 '2026.04.07' → '2026-04-07'
+function normalizeDate(str) {
+  if (!str) return '';
+  const s = String(str).trim();
+  // YYYY-MM-DD, YYYY.MM.DD, YYYY/MM/DD 패턴 추출
+  const m = s.match(/(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+  if (!m) return '';
+  const y = m[1];
+  const mo = String(parseInt(m[2], 10)).padStart(2, '0');
+  const d = String(parseInt(m[3], 10)).padStart(2, '0');
+  return `${y}-${mo}-${d}`;
 }
 
 export default async function handler(req, res) {
@@ -95,8 +105,9 @@ export default async function handler(req, res) {
 
 스키마:
 {
-  "doc_no": "문서번호 (예: IP-2024-0001)",
-  "user": "신청자 이름",
+  "doc_no": "문서번호 (예: 인텍플러스-2026-05812)",
+  "user": "기안자 이름 (품의서의 '기안자' 필드 값. 결재란의 '대리/승인' 이름이 아니라 기안자를 우선)",
+  "drafted_at": "기안일자를 YYYY-MM-DD 형식으로 (예: '2026-04-07(화)' → '2026-04-07'. 요일/시간 제거)",
   "items": [
     {
       "p_name": "프로젝트명",
@@ -112,6 +123,8 @@ export default async function handler(req, res) {
 - 모든 품목을 빠짐없이 추출
 - 값이 없으면 빈 문자열 "" 또는 0
 - qty는 반드시 숫자(number) 타입
+- drafted_at은 반드시 YYYY-MM-DD 형식 (날짜 정보 없으면 빈 문자열)
+- user는 '기안자' 라벨 값을 우선. 없으면 '신청자' 또는 '작성자'
 - JSON 외 텍스트 절대 금지
 
 품의서 데이터:
@@ -167,6 +180,7 @@ ${trimmed}`;
     const result = {
       doc_no: String(parsed.doc_no || '').trim(),
       user: String(parsed.user || '').trim(),
+      drafted_at: normalizeDate(parsed.drafted_at),
       items: Array.isArray(parsed.items)
         ? parsed.items.map((it) => ({
             p_name: String(it.p_name || '').trim(),

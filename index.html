@@ -5,335 +5,551 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>인텍플러스 구매관리 시스템</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #1a73e8;
-            --primary-dark: #1557b0;
-            --success: #34a853;
-            --warning: #f9ab00;
-            --danger: #ea4335;
-            --bg: #f0f2f5;
+            --primary: #0f4c81;
+            --primary-light: #1a73e8;
+            --primary-pale: #e8f0fe;
+            --success: #1e8449;
+            --success-light: #27ae60;
+            --success-pale: #eafaf1;
+            --warning: #b7770d;
+            --warning-light: #f39c12;
+            --warning-pale: #fef9e7;
+            --danger: #c0392b;
+            --danger-light: #e74c3c;
+            --danger-pale: #fdf2f2;
+            --info: #1a5276;
+            --info-pale: #ebf5fb;
+            --bg: #f0f3f8;
             --card: #ffffff;
-            --border: #e8eaed;
-            --text: #202124;
-            --text-muted: #5f6368;
+            --border: #dde1e8;
+            --border-light: #eef0f4;
+            --text: #1a202c;
+            --text-sub: #4a5568;
+            --text-muted: #718096;
+            --radius: 10px;
+            --shadow-sm: 0 1px 4px rgba(0,0,0,0.07);
+            --shadow: 0 4px 16px rgba(0,0,0,0.09);
+            --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
         }
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: 'Malgun Gothic', -apple-system, BlinkMacSystemFont, sans-serif;
-            margin: 0;
-            padding: 16px;
-            background-color: var(--bg);
+            font-family: 'Noto Sans KR', sans-serif;
+            background: var(--bg);
             color: var(--text);
+            min-height: 100vh;
+            padding: 24px 16px 60px;
+        }
+
+        /* ── 레이아웃 ── */
+        .page-header {
+            max-width: 1300px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .page-header .logo {
+            width: 40px; height: 40px;
+            background: var(--primary);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        .page-header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -0.3px;
+        }
+        .page-header .subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
         }
         .container {
-            max-width: 1600px;
+            max-width: 1300px;
             margin: auto;
-            background: var(--card);
-            padding: 28px 32px;
-            border-radius: 16px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
         }
-        h1 {
-            color: var(--primary);
-            text-align: center;
-            border-bottom: 2px solid var(--border);
-            padding-bottom: 14px;
-            margin-top: 0;
-        }
+
+        /* ── 탭 ── */
         .tabs {
             display: flex;
-            gap: 8px;
+            gap: 4px;
             margin-bottom: 20px;
-            border-bottom: 1px solid var(--border);
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 6px;
+            box-shadow: var(--shadow-sm);
         }
         .tab {
-            padding: 12px 20px;
+            flex: 1;
+            padding: 10px 16px;
             cursor: pointer;
-            background: none;
+            background: transparent;
             border: none;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 600;
             color: var(--text-muted);
-            border-bottom: 3px solid transparent;
-            transition: all 0.2s;
+            border-radius: 7px;
+            transition: all 0.18s;
+            font-family: inherit;
         }
+        .tab:hover { background: var(--bg); color: var(--text-sub); }
         .tab.active {
-            color: var(--primary);
-            border-bottom-color: var(--primary);
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(15,76,129,0.25);
         }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
+        /* ── 알림 배너 ── */
+        #alertBanner {
+            display: none;
+            margin-bottom: 20px;
+            border-radius: var(--radius);
+            border: 1px solid #f0c04b;
+            background: #fffbea;
+            overflow: hidden;
+        }
+        #alertBanner.show { display: block; }
+        .alert-header {
+            background: #f0c04b;
+            padding: 10px 16px;
+            font-weight: 700;
+            font-size: 14px;
+            color: #5c3d00;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .alert-body { padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; }
+        .alert-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 500;
+            background: #fff8e0;
+            border-left: 3px solid var(--warning-light);
+        }
+        .alert-item.overdue { background: #fdf2f2; border-left-color: var(--danger-light); }
+        .alert-item .alert-doc {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            color: var(--primary);
+            min-width: 200px;
+            flex-shrink: 0;
+        }
+        .alert-item .alert-msg { color: var(--text-sub); }
+        .alert-badge {
+            background: var(--danger-light);
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 1px 7px;
+            border-radius: 100px;
+            margin-left: auto;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .alert-badge.today { background: var(--warning-light); }
+
+        /* ── 업로드 영역 ── */
         .upload-card {
-            border: 3px dashed var(--primary);
-            background: #f8fbff;
+            border: 2px dashed var(--primary-light);
+            background: var(--primary-pale);
             padding: 48px 24px;
             text-align: center;
-            border-radius: 12px;
+            border-radius: var(--radius);
             cursor: pointer;
             transition: all 0.2s;
         }
-        .upload-card:hover,
-        .upload-card.dragover { background: #e8f0fe; }
-        .upload-card h3 { margin: 0 0 16px 0; }
+        .upload-card:hover, .upload-card.dragover {
+            background: #d2e3fc;
+            border-color: var(--primary);
+        }
+        .upload-card h3 { font-size: 16px; color: var(--primary); margin-bottom: 14px; }
+        .upload-card p { font-size: 13px; color: var(--text-muted); margin-top: 8px; }
 
+        /* ── 버튼 ── */
         .btn {
-            padding: 10px 20px;
+            padding: 9px 18px;
             border: none;
-            border-radius: 6px;
-            font-size: 14px;
+            border-radius: 7px;
+            font-size: 13px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.18s;
+            font-family: inherit;
+            white-space: nowrap;
         }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: var(--primary-dark); }
-        .btn-success { background: var(--success); color: white; }
-        .btn-success:hover { opacity: 0.9; }
-        .btn-danger { background: var(--danger); color: white; padding: 6px 12px; font-size: 12px; }
-        .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: #0d3f6e; }
+        .btn-success { background: var(--success-light); color: #fff; }
+        .btn-success:hover { background: var(--success); }
+        .btn-danger { background: var(--danger-light); color: #fff; padding: 5px 10px; font-size: 12px; }
+        .btn-danger:hover { background: var(--danger); }
+        .btn-ghost { background: transparent; color: var(--text-sub); border: 1px solid var(--border); }
         .btn-ghost:hover { background: var(--bg); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
 
-        .loading {
-            display: none;
-            color: var(--warning);
-            font-weight: bold;
-            text-align: center;
-            margin: 16px 0;
-        }
+        /* ── 로딩 ── */
+        .loading { display: none; text-align: center; padding: 16px; color: var(--warning); font-weight: 600; }
         .loading.show { display: block; }
 
+        /* ── 정보 헤더 ── */
         .info-header {
-            background: #f8f9fa;
-            padding: 16px 20px;
-            border-radius: 10px;
-            margin-top: 20px;
+            background: var(--primary-pale);
+            border: 1px solid #c5d9f8;
+            padding: 14px 20px;
+            border-radius: var(--radius);
+            margin-top: 16px;
             display: none;
-            gap: 32px;
+            gap: 28px;
             font-weight: 600;
-            border-left: 4px solid var(--primary);
             flex-wrap: wrap;
+            align-items: center;
         }
         .info-header.show { display: flex; }
-        .info-header span.value { color: var(--primary); margin-left: 6px; }
+        .info-header .info-item { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+        .info-header .info-item .label { color: var(--text-muted); font-weight: 500; font-size: 12px; }
+        .info-header .info-item .value { color: var(--primary); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
 
+        /* ── 테이블 공통 ── */
         .table-wrapper {
             overflow-x: auto;
-            margin-top: 16px;
-            border-radius: 8px;
+            border-radius: var(--radius);
             border: 1px solid var(--border);
+            margin-top: 16px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: auto;
         }
-        th, td {
-            border-bottom: 1px solid var(--border);
+        th {
+            background: var(--primary);
+            color: #fff;
+            font-weight: 600;
+            font-size: 12px;
             padding: 10px 12px;
             text-align: center;
-            font-size: 13px;
             white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 2;
         }
-        td.wrap { white-space: normal; word-break: break-word; }
-        th {
-            background-color: #5f6368;
-            color: white;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-        tbody tr:hover { background: #fafbfc; }
-        input.cell {
-            width: 100%;
-            min-width: 80px;
-            padding: 6px 8px;
-            border: 1px solid transparent;
-            border-radius: 4px;
+        td {
+            border-bottom: 1px solid var(--border-light);
+            padding: 8px 10px;
             text-align: center;
             font-size: 13px;
+            color: var(--text);
+        }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover td { background: #f8fafd; }
+
+        input.cell {
+            width: 100%;
+            padding: 5px 7px;
+            border: 1px solid transparent;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 12px;
             background: transparent;
+            font-family: inherit;
+            color: var(--text);
         }
         input.cell:focus {
             outline: none;
-            border-color: var(--primary);
-            background: #f8fbff;
+            border-color: var(--primary-light);
+            background: var(--primary-pale);
         }
 
+        /* ── 액션바 ── */
         .action-bar {
             display: flex;
-            gap: 12px;
-            margin-top: 24px;
-            justify-content: flex-end;
-        }
-        .action-bar .btn { padding: 12px 24px; font-size: 15px; }
-
-        .toast {
-            position: fixed;
-            top: 24px;
-            right: 24px;
-            background: var(--text);
-            color: white;
-            padding: 14px 20px;
-            border-radius: 8px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-            z-index: 10000;
-            opacity: 0;
-            transform: translateY(-10px);
-            transition: all 0.3s;
-            max-width: 400px;
-        }
-        .toast.show { opacity: 1; transform: translateY(0); }
-        .toast.success { background: var(--success); }
-        .toast.error { background: var(--danger); }
-
-        /* 검색 영역 */
-        .search-box {
-            background: #f8f9fa;
-            padding: 16px;
-            border-radius: 10px;
-            margin-bottom: 16px;
-        }
-        .search-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
         }
-        .search-grid input {
+
+        /* ── 검색바 ── */
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .filter-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 150px; }
+        .filter-group label { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+        .filter-group input, .filter-group select {
             padding: 8px 12px;
             border: 1px solid var(--border);
-            border-radius: 6px;
+            border-radius: 7px;
             font-size: 13px;
-            background: white;
+            font-family: inherit;
+            color: var(--text);
+            background: #fff;
         }
-        .search-actions {
-            display: flex;
-            gap: 8px;
-            justify-content: flex-end;
-            margin-top: 10px;
+        .filter-group input:focus, .filter-group select:focus {
+            outline: none;
+            border-color: var(--primary-light);
         }
 
-        /* 링크 스타일 */
-        .link {
+        /* ── 조회 결과 - 문서 그룹 카드 ── */
+        .doc-group {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+            overflow: hidden;
+            background: var(--card);
+            box-shadow: var(--shadow-sm);
+        }
+        .doc-group-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: #f5f8ff;
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+            cursor: pointer;
+            user-select: none;
+        }
+        .doc-group-header:hover { background: #eaf0ff; }
+        .doc-no-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 700;
             color: var(--primary);
-            text-decoration: none;
-            cursor: pointer;
-            font-weight: 600;
+            background: var(--primary-pale);
+            padding: 3px 10px;
+            border-radius: 5px;
+            border: 1px solid #b8d0f5;
         }
-        .link:hover { text-decoration: underline; }
-
-        .empty-state {
-            text-align: center;
-            padding: 48px 20px;
-            color: var(--text-muted);
-        }
-
-        .arrival-pending { color: var(--text-muted); font-style: italic; }
-        .arrival-set { color: var(--success); font-weight: 600; }
-
-        /* 모달 */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 9999;
-            align-items: flex-start;
-            justify-content: center;
-            padding: 40px 20px;
-            overflow-y: auto;
-        }
-        .modal-overlay.show { display: flex; }
-        .modal {
-            background: white;
-            border-radius: 16px;
-            padding: 28px;
-            width: 100%;
-            max-width: 1200px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 20px;
-            padding-bottom: 16px;
-            border-bottom: 2px solid var(--border);
-        }
-        .modal-title { color: var(--primary); margin: 0; font-size: 20px; }
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 28px;
-            cursor: pointer;
-            color: var(--text-muted);
-            line-height: 1;
-        }
-        .modal-close:hover { color: var(--danger); }
-        .modal-body-section { margin-bottom: 20px; }
-        .modal-body-section h4 { margin: 0 0 12px 0; color: var(--text); }
-        .meta-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px 24px;
-            background: #f8f9fa;
-            padding: 16px;
-            border-radius: 8px;
-        }
-        .meta-item { font-size: 14px; }
-        .meta-label { color: var(--text-muted); display: block; font-size: 12px; margin-bottom: 2px; }
-        .meta-value { font-weight: 600; }
-        .arrival-input-row {
+        .doc-meta { font-size: 12px; color: var(--text-muted); }
+        .doc-meta strong { color: var(--text-sub); }
+        .doc-status-row {
             display: flex;
             gap: 8px;
             align-items: center;
-            margin-top: 8px;
+            flex-wrap: wrap;
+            margin-left: auto;
         }
-        .arrival-input-row input[type="date"] {
-            padding: 8px 12px;
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 9px;
+            border-radius: 100px;
+            border: 1px solid transparent;
+        }
+        .chip-done { background: var(--success-pale); color: var(--success); border-color: #a9dfbf; }
+        .chip-pending { background: var(--warning-pale); color: var(--warning); border-color: #fad7a0; }
+        .chip-none { background: var(--bg); color: var(--text-muted); border-color: var(--border); }
+        .chip-overdue { background: var(--danger-pale); color: var(--danger); border-color: #f5b7b1; }
+
+        /* ── 상태 편집 패널 ── */
+        .status-panel {
+            padding: 16px;
+            background: #fafbfc;
+            border-bottom: 1px solid var(--border);
+            display: none;
+        }
+        .status-panel.open { display: block; }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        .status-field { display: flex; flex-direction: column; gap: 5px; }
+        .status-field label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+        .status-field input[type="date"],
+        .status-field textarea {
+            padding: 7px 10px;
             border: 1px solid var(--border);
             border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            color: var(--text);
+            background: #fff;
+        }
+        .status-field input[type="date"]:focus,
+        .status-field textarea:focus { outline: none; border-color: var(--primary-light); }
+        .status-field textarea { resize: vertical; min-height: 52px; }
+        .checkbox-row { display: flex; align-items: center; gap: 8px; }
+        .checkbox-row input[type="checkbox"] {
+            width: 16px; height: 16px;
+            accent-color: var(--success-light);
+            cursor: pointer;
+        }
+        .checkbox-row label { font-size: 13px; font-weight: 600; color: var(--text-sub); cursor: pointer; }
+        .status-save-bar { display: flex; gap: 8px; justify-content: flex-end; }
+
+        /* ── 품목 서브테이블 ── */
+        .items-table-wrap {
+            overflow-x: auto;
+        }
+        .items-table-wrap table { min-width: 700px; }
+        .items-table-wrap th { background: #4a5568; font-size: 11px; }
+        .items-count-bar {
+            padding: 6px 16px;
+            font-size: 12px;
+            color: var(--text-muted);
+            background: #f9fafc;
+            border-top: 1px solid var(--border-light);
+        }
+
+        /* ── 빈 상태 ── */
+        .empty-state {
+            text-align: center;
+            padding: 56px 20px;
+            color: var(--text-muted);
             font-size: 14px;
+        }
+        .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+
+        /* ── 토스트 ── */
+        #toastContainer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 420px;
+        }
+        .toast {
+            background: var(--text);
+            color: #fff;
+            padding: 13px 18px;
+            border-radius: 9px;
+            box-shadow: var(--shadow-lg);
+            font-size: 13px;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateX(30px);
+            transition: all 0.3s;
+            line-height: 1.5;
+        }
+        .toast.show { opacity: 1; transform: translateX(0); }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger-light); }
+        .toast.warning { background: var(--warning-light); color: #fff; }
+
+        /* ── 요약 통계 ── */
+        .stat-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            flex: 1;
+            min-width: 130px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            box-shadow: var(--shadow-sm);
+        }
+        .stat-card .stat-label { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-bottom: 4px; }
+        .stat-card .stat-value { font-size: 24px; font-weight: 700; color: var(--primary); font-family: 'JetBrains Mono', monospace; }
+        .stat-card .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+        /* ── 반응형 ── */
+        @media (max-width: 768px) {
+            .status-grid { grid-template-columns: 1fr 1fr; }
+            .doc-status-row { width: 100%; }
+        }
+        @media (max-width: 500px) {
+            .status-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>🛒 인텍플러스 구매 관리</h1>
+<div class="page-header">
+    <div class="logo">🛒</div>
+    <div>
+        <h1>인텍플러스 구매관리</h1>
+        <div class="subtitle">Purchase Management System</div>
+    </div>
+</div>
 
-    <div class="tabs">
-        <button class="tab active" data-tab="upload">📄 품의서 업로드</button>
-        <button class="tab" data-tab="history">📋 저장된 구매 리스트</button>
+<div class="container">
+
+    <!-- ▼ 알림 배너 -->
+    <div id="alertBanner">
+        <div class="alert-header">
+            <span>🔔</span>
+            <span id="alertHeaderText">확인이 필요한 항목이 있습니다</span>
+        </div>
+        <div class="alert-body" id="alertBody"></div>
     </div>
 
-    <!-- 업로드 탭 -->
+    <!-- ▼ 탭 -->
+    <div class="tabs">
+        <button class="tab active" data-tab="upload">📄 품의서 업로드</button>
+        <button class="tab" data-tab="history">📋 구매 리스트 조회</button>
+    </div>
+
+    <!-- ════════════════════════════════════════
+         탭 1: 업로드
+    ════════════════════════════════════════ -->
     <div id="tab-upload" class="tab-content active">
         <div class="upload-card" id="dropZone">
             <h3>📄 품의서 HTML 파일을 드래그하거나 클릭하세요</h3>
             <button class="btn btn-primary" type="button">파일 선택</button>
-            <input type="file" id="fileInput" accept=".html,.htm" style="display: none;">
+            <input type="file" id="fileInput" accept=".html,.htm" style="display:none;">
+            <p>지원 형식: .html / .htm · 파일 크기 제한 없음</p>
             <div id="loading" class="loading">🚀 Gemini가 데이터를 분석 중입니다...</div>
         </div>
 
         <div id="infoArea" class="info-header">
-            <div>문서번호: <span class="value" id="doc_no">-</span></div>
-            <div>기안자: <span class="value" id="doc_requester">-</span></div>
-            <div>기안일: <span class="value" id="doc_drafted">-</span></div>
-            <div>품목 수: <span class="value" id="item_count">0</span></div>
+            <div class="info-item"><span class="label">문서번호</span><span class="value" id="doc_no">-</span></div>
+            <div class="info-item"><span class="label">신청자</span><span class="value" id="doc_requester">-</span></div>
+            <div class="info-item"><span class="label">품목 수</span><span class="value" id="item_count">0</span></div>
         </div>
 
         <div class="table-wrapper" id="resultWrapper" style="display:none;">
             <table>
                 <thead>
                     <tr>
-                        <th style="min-width:180px">프로젝트명</th>
-                        <th style="min-width:130px">코드</th>
-                        <th style="min-width:200px">품명</th>
-                        <th style="min-width:200px">규격</th>
-                        <th style="min-width:70px">수량</th>
-                        <th style="min-width:80px">작업</th>
+                        <th style="width:18%">프로젝트명</th>
+                        <th style="width:12%">코드</th>
+                        <th style="width:25%">품명</th>
+                        <th style="width:25%">규격</th>
+                        <th style="width:8%">수량</th>
+                        <th style="width:12%">작업</th>
                     </tr>
                 </thead>
                 <tbody id="resultBody"></tbody>
@@ -341,175 +557,172 @@
         </div>
 
         <div class="action-bar" id="actionBar" style="display:none;">
-            <button class="btn btn-primary" id="addRowBtn">+ 행 추가</button>
+            <button class="btn btn-ghost" id="addRowBtn">+ 행 추가</button>
             <button class="btn btn-success" id="saveBtn">✅ 데이터베이스에 저장</button>
         </div>
     </div>
 
-    <!-- 조회 탭 -->
+    <!-- ════════════════════════════════════════
+         탭 2: 조회
+    ════════════════════════════════════════ -->
     <div id="tab-history" class="tab-content">
-        <div class="search-box">
-            <div class="search-grid">
-                <input type="text" id="searchDoc"      placeholder="🔍 문서번호">
-                <input type="text" id="searchRequester" placeholder="🔍 기안자">
-                <input type="text" id="searchProject"  placeholder="🔍 프로젝트명 (부분일치)">
-                <input type="text" id="searchCode"     placeholder="🔍 코드">
-                <input type="text" id="searchName"     placeholder="🔍 품명">
-                <input type="text" id="searchSpec"     placeholder="🔍 규격">
-                <input type="date" id="searchDateFrom" title="기안일 시작">
-                <input type="date" id="searchDateTo"   title="기안일 종료">
-            </div>
-            <div class="search-actions">
-                <button class="btn btn-ghost" id="resetBtn">초기화</button>
-                <button class="btn btn-primary" id="refreshBtn">🔍 검색</button>
+
+        <!-- 검색 필터 -->
+        <div class="card" style="padding:16px;margin-bottom:16px;">
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <label>문서번호</label>
+                    <input type="text" id="searchDoc" placeholder="예: 인텍플러스-2026">
+                </div>
+                <div class="filter-group">
+                    <label>품명</label>
+                    <input type="text" id="searchName" placeholder="예: 커넥터">
+                </div>
+                <div class="filter-group">
+                    <label>신청자</label>
+                    <input type="text" id="searchRequester" placeholder="예: 홍길동">
+                </div>
+                <div class="filter-group" style="min-width:130px;max-width:160px;">
+                    <label>입고 상태</label>
+                    <select id="filterArrival">
+                        <option value="">전체</option>
+                        <option value="done">입고완료</option>
+                        <option value="pending">미완료</option>
+                        <option value="nodate">입고일 미입력</option>
+                    </select>
+                </div>
+                <div class="filter-group" style="min-width:130px;max-width:160px;">
+                    <label>배송 상태</label>
+                    <select id="filterShip">
+                        <option value="">전체</option>
+                        <option value="done">배송완료</option>
+                        <option value="started">배송중</option>
+                        <option value="none">배송 전</option>
+                    </select>
+                </div>
+                <div style="display:flex;align-items:flex-end;">
+                    <button class="btn btn-primary" id="refreshBtn">🔍 조회</button>
+                </div>
             </div>
         </div>
 
+        <!-- 통계 카드 -->
+        <div class="stat-row" id="statRow" style="display:none;">
+            <div class="stat-card">
+                <div class="stat-label">전체 문서</div>
+                <div class="stat-value" id="statTotal">0</div>
+                <div class="stat-sub">개 문서번호</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">전체 품목</div>
+                <div class="stat-value" id="statItems">0</div>
+                <div class="stat-sub">개 품목</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">입고완료</div>
+                <div class="stat-value" id="statArrDone">0</div>
+                <div class="stat-sub">개 문서</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">입고일 미입력</div>
+                <div class="stat-value" id="statArrNone">0</div>
+                <div class="stat-sub">개 문서</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">배송완료</div>
+                <div class="stat-value" id="statShipDone">0</div>
+                <div class="stat-sub">개 문서</div>
+            </div>
+        </div>
+
+        <!-- 결과 영역 -->
         <div id="historyContent">
-            <div class="empty-state">검색 버튼을 눌러 저장된 데이터를 불러오세요.</div>
+            <div class="empty-state">
+                <div class="icon">📋</div>
+                조회 버튼을 눌러 저장된 데이터를 불러오세요.
+            </div>
         </div>
     </div>
 </div>
 
-<!-- 상세 팝업 -->
-<div class="modal-overlay" id="detailModal">
-    <div class="modal">
-        <div class="modal-header">
-            <h3 class="modal-title" id="modalTitle">문서 상세</h3>
-            <button class="modal-close" id="modalClose">×</button>
-        </div>
-        <div class="modal-body-section">
-            <h4>📑 문서 정보</h4>
-            <div class="meta-grid">
-                <div class="meta-item">
-                    <span class="meta-label">문서번호</span>
-                    <span class="meta-value" id="mDocNo">-</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label">기안자</span>
-                    <span class="meta-value" id="mRequester">-</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label">기안일</span>
-                    <span class="meta-value" id="mDrafted">-</span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label">품목 수</span>
-                    <span class="meta-value" id="mItemCount">0</span>
-                </div>
-            </div>
-        </div>
-        <div class="modal-body-section">
-            <h4>📅 입고예상일</h4>
-            <div class="arrival-input-row">
-                <input type="date" id="mArrival">
-                <button class="btn btn-success" id="mSaveArrival">💾 저장</button>
-                <button class="btn btn-ghost" id="mClearArrival">지우기</button>
-            </div>
-        </div>
-        <div class="modal-body-section">
-            <h4>📦 품목 리스트</h4>
-            <div class="table-wrapper">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="min-width:180px">프로젝트명</th>
-                            <th style="min-width:130px">코드</th>
-                            <th style="min-width:220px">품명</th>
-                            <th style="min-width:220px">규격</th>
-                            <th style="min-width:70px">수량</th>
-                        </tr>
-                    </thead>
-                    <tbody id="mItemBody"></tbody>
-                </table>
-            </div>
-        </div>
-        <div class="action-bar">
-            <button class="btn btn-danger" id="mDeleteDoc">🗑 이 문서 전체 삭제</button>
-        </div>
-    </div>
-</div>
-
-<div id="toast" class="toast"></div>
+<!-- 토스트 컨테이너 -->
+<div id="toastContainer"></div>
 
 <script>
-// ==========================================================
-// 🔧 Supabase 설정 — 아래 두 줄만 본인 값으로 교체하세요
-// ==========================================================
-const SUPABASE_URL = 'https://kiyztxxvynsrjusqlirt.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtpeXp0eHh2eW5zcmp1c3FsaXJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MzEwOTksImV4cCI6MjA5MjMwNzA5OX0.26rUt3fnWIKrTa_lQiIphaMO6ggoXAswhEE1g9iZ7_Y';
-// ==========================================================
+// ══════════════════════════════════════════════════════════
+// 🔧 Supabase 설정 — 아래 두 줄을 본인 값으로 교체하세요
+// ══════════════════════════════════════════════════════════
+const SUPABASE_URL      = 'https://YOUR-PROJECT.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR-ANON-KEY';
+// ══════════════════════════════════════════════════════════
 
 (function () {
     'use strict';
 
-    const ITEMS_TABLE = 'purchase_items';
-    const DOCS_TABLE  = 'purchase_documents';
+    const ITEMS_TABLE  = 'purchase_items';
+    const STATUS_TABLE = 'doc_status';
 
+    // Supabase 초기화
     let sb = null;
-    try {
-        sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    } catch (e) {
-        console.error('Supabase 초기화 실패:', e);
-    }
+    try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
+    catch (e) { console.error('Supabase 초기화 실패:', e); }
 
-    // 업로드 상태
+    // 상태
     let currentDocNo = '';
-    let currentUser = '';
-    let currentDrafted = '';
+    let currentUser  = '';
 
-    // 모달 상태
-    let modalDocNo = '';
+    // ── DOM ──
+    const dropZone      = document.getElementById('dropZone');
+    const fileInput     = document.getElementById('fileInput');
+    const loading       = document.getElementById('loading');
+    const infoArea      = document.getElementById('infoArea');
+    const resultWrapper = document.getElementById('resultWrapper');
+    const resultBody    = document.getElementById('resultBody');
+    const actionBar     = document.getElementById('actionBar');
+    const addRowBtn     = document.getElementById('addRowBtn');
+    const saveBtn       = document.getElementById('saveBtn');
+    const refreshBtn    = document.getElementById('refreshBtn');
 
-    // DOM
-    const $ = (id) => document.getElementById(id);
-    const dropZone = $('dropZone');
-    const fileInput = $('fileInput');
-    const loading = $('loading');
-    const infoArea = $('infoArea');
-    const resultWrapper = $('resultWrapper');
-    const resultBody = $('resultBody');
-    const actionBar = $('actionBar');
-    const addRowBtn = $('addRowBtn');
-    const saveBtn = $('saveBtn');
-
-    // ---------- 탭 ----------
+    // ── 탭 ──
     document.querySelectorAll('.tab').forEach(function (tab) {
         tab.addEventListener('click', function () {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+            document.querySelectorAll('.tab-content').forEach(function (c) { c.classList.remove('active'); });
             tab.classList.add('active');
-            $('tab-' + tab.dataset.tab).classList.add('active');
+            document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
             if (tab.dataset.tab === 'history') loadHistory();
         });
     });
 
-    // ---------- 드래그앤드롭 ----------
+    // ── 드래그앤드롭 ──
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function (ev) {
         window.addEventListener(ev, function (e) { e.preventDefault(); e.stopPropagation(); }, false);
     });
-    dropZone.addEventListener('dragover', () => dropZone.classList.add('dragover'));
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('dragover', function () { dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', function () { dropZone.classList.remove('dragover'); });
     dropZone.addEventListener('drop', function (e) {
         dropZone.classList.remove('dragover');
         if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
     });
     dropZone.addEventListener('click', function (e) {
-        if (e.target.tagName !== 'INPUT') fileInput.click();
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') fileInput.click();
+    });
+    dropZone.querySelector('.btn-primary').addEventListener('click', function (e) {
+        e.stopPropagation();
+        fileInput.click();
     });
     fileInput.addEventListener('change', function (e) {
         if (e.target.files.length) handleFile(e.target.files[0]);
     });
 
-    addRowBtn.addEventListener('click', () => appendRow({}));
+    // ── 버튼 이벤트 ──
+    addRowBtn.addEventListener('click', function () { appendRow({}); });
     saveBtn.addEventListener('click', saveToSupabase);
-    $('refreshBtn').addEventListener('click', loadHistory);
-    $('resetBtn').addEventListener('click', resetSearch);
-    ['searchDoc','searchRequester','searchProject','searchCode','searchName','searchSpec','searchDateFrom','searchDateTo'].forEach(function (id) {
-        $(id).addEventListener('keydown', function (e) { if (e.key === 'Enter') loadHistory(); });
-    });
+    refreshBtn.addEventListener('click', loadHistory);
 
-    // ---------- 파일 처리 ----------
+    // ══════════════════════════════════════════════════════════
+    // 파일 처리
+    // ══════════════════════════════════════════════════════════
     async function handleFile(file) {
         loading.classList.add('show');
         try {
@@ -517,6 +730,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             const cleanText = (doc.body ? doc.body.innerText : '').replace(/\s+/g, ' ').trim();
+
             if (!cleanText) throw new Error('HTML에서 텍스트를 추출할 수 없습니다.');
 
             const res = await fetch('/api/extract', {
@@ -539,19 +753,19 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         }
     }
 
+    // ══════════════════════════════════════════════════════════
+    // 업로드 탭 테이블 렌더링
+    // ══════════════════════════════════════════════════════════
     function renderData(data) {
-        currentDocNo   = data.doc_no || '';
-        currentUser    = data.user || '';
-        currentDrafted = data.drafted_at || '';
-
-        $('doc_no').innerText        = currentDocNo || '-';
-        $('doc_requester').innerText = currentUser || '-';
-        $('doc_drafted').innerText   = currentDrafted || '-';
-        $('item_count').innerText    = data.items.length;
+        currentDocNo = data.doc_no || '';
+        currentUser  = data.user  || '';
+        document.getElementById('doc_no').innerText       = currentDocNo || '-';
+        document.getElementById('doc_requester').innerText = currentUser  || '-';
+        document.getElementById('item_count').innerText   = data.items.length;
         infoArea.classList.add('show');
 
         resultBody.innerHTML = '';
-        (data.items || []).forEach(item => appendRow(item));
+        (data.items || []).forEach(function (item) { appendRow(item); });
         resultWrapper.style.display = 'block';
         actionBar.style.display = 'flex';
     }
@@ -562,8 +776,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         tr.innerHTML =
             '<td><input class="cell" data-k="p_name" value="' + escapeHtml(item.p_name || '') + '"></td>' +
             '<td><input class="cell" data-k="p_code" value="' + escapeHtml(item.p_code || '') + '"></td>' +
-            '<td><input class="cell" data-k="name" value="'   + escapeHtml(item.name || '')   + '"></td>' +
-            '<td><input class="cell" data-k="spec" value="'   + escapeHtml(item.spec || '')   + '"></td>' +
+            '<td><input class="cell" data-k="name"   value="' + escapeHtml(item.name   || '') + '"></td>' +
+            '<td><input class="cell" data-k="spec"   value="' + escapeHtml(item.spec   || '') + '"></td>' +
             '<td><input class="cell" data-k="qty" type="number" min="0" value="' + (item.qty || 0) + '"></td>' +
             '<td><button class="btn btn-danger" type="button">삭제</button></td>';
         tr.querySelector('.btn-danger').addEventListener('click', function () {
@@ -575,44 +789,30 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
     }
 
     function updateCount() {
-        $('item_count').innerText = resultBody.querySelectorAll('tr').length;
+        document.getElementById('item_count').innerText = resultBody.querySelectorAll('tr').length;
     }
 
-    function escapeHtml(str) {
-        return String(str)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-    }
-
-    // ---------- 저장 ----------
+    // ══════════════════════════════════════════════════════════
+    // 저장 (중복 문서번호 거부)
+    // ══════════════════════════════════════════════════════════
     async function saveToSupabase() {
-        if (!sb)            return showToast('Supabase 연결이 설정되지 않았습니다.', 'error');
-        if (!currentDocNo)  return showToast('문서번호가 비어 있습니다.', 'error');
+        if (!sb) { showToast('Supabase가 설정되지 않았습니다.', 'error'); return; }
+        if (!currentDocNo) { showToast('문서번호가 비어 있습니다.', 'error'); return; }
         const rows = resultBody.querySelectorAll('tr');
-        if (rows.length === 0) return showToast('저장할 품목이 없습니다.', 'error');
+        if (rows.length === 0) { showToast('저장할 품목이 없습니다.', 'error'); return; }
 
         saveBtn.disabled = true;
         try {
-            // 1) 중복 검사 (items 기준)
             const check = await sb.from(ITEMS_TABLE)
                 .select('id', { count: 'exact', head: true })
                 .eq('doc_no', currentDocNo);
             if (check.error) throw check.error;
+
             if (check.count && check.count > 0) {
                 showToast('⚠️ 문서번호가 중복되어 업로드 되지 않습니다. (' + currentDocNo + ')', 'error');
                 return;
             }
 
-            // 2) purchase_documents 에 문서 메타 저장 (upsert)
-            const docRow = {
-                doc_no: currentDocNo,
-                requester: currentUser,
-                drafted_at: currentDrafted || null
-            };
-            const docRes = await sb.from(DOCS_TABLE).upsert(docRow, { onConflict: 'doc_no' });
-            if (docRes.error) throw docRes.error;
-
-            // 3) purchase_items 에 품목 저장
             const items = Array.from(rows).map(function (tr) {
                 const obj = {
                     doc_no: currentDocNo,
@@ -627,9 +827,15 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
             });
 
             const ins = await sb.from(ITEMS_TABLE).insert(items);
-            if (ins.error) throw ins.error;
+            if (ins.error) {
+                if (ins.error.code === '23505') {
+                    showToast('⚠️ 문서번호 중복: ' + currentDocNo, 'error');
+                    return;
+                }
+                throw ins.error;
+            }
 
-            showToast('✅ ' + items.length + '건이 저장되었습니다. (문서: ' + currentDocNo + ')', 'success');
+            showToast('✅ ' + items.length + '건 저장 완료 (문서: ' + currentDocNo + ')', 'success');
         } catch (err) {
             console.error(err);
             showToast('❌ 저장 실패: ' + (err.message || err), 'error');
@@ -638,108 +844,179 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         }
     }
 
-    // ---------- 조회 ----------
-    function resetSearch() {
-        ['searchDoc','searchRequester','searchProject','searchCode','searchName','searchSpec','searchDateFrom','searchDateTo']
-            .forEach(id => $(id).value = '');
-        loadHistory();
-    }
+    // ══════════════════════════════════════════════════════════
+    // 알림 배너
+    // ══════════════════════════════════════════════════════════
+    function checkAlerts(statusList) {
+        const today = todayStr();
+        const alerts = [];
 
-    async function loadHistory() {
-        const historyContent = $('historyContent');
-        if (!sb) {
-            historyContent.innerHTML = '<div class="empty-state">Supabase 연결이 설정되지 않았습니다.</div>';
+        statusList.forEach(function (s) {
+            if (!s.doc_no) return;
+
+            // 1) 입고예정일 알림 (입고완료 전)
+            if (!s.arrival_done) {
+                if (!s.expected_arrival) {
+                    // 입고일 미입력 알림
+                    alerts.push({
+                        doc: s.doc_no,
+                        msg: '입고예정일이 입력되지 않았습니다. 확인해주세요!',
+                        overdue: false,
+                        nodate: true
+                    });
+                } else if (s.expected_arrival <= today) {
+                    alerts.push({
+                        doc: s.doc_no,
+                        msg: '입고예정일 ' + formatDateKo(s.expected_arrival) + ' 입니다. 확인해주세요!',
+                        overdue: s.expected_arrival < today
+                    });
+                }
+            }
+
+            // 2) 배송시작일 알림 (배송완료 전)
+            if (!s.ship_done) {
+                if (s.ship_start_date && s.ship_start_date <= today) {
+                    alerts.push({
+                        doc: s.doc_no,
+                        msg: '배송시작일 ' + formatDateKo(s.ship_start_date) + ' 입니다. 배송 상태를 확인해주세요!',
+                        overdue: s.ship_start_date < today
+                    });
+                }
+                if (s.ship_done_date && s.ship_done_date <= today) {
+                    alerts.push({
+                        doc: s.doc_no,
+                        msg: '배송완료예정일 ' + formatDateKo(s.ship_done_date) + ' 입니다. 배송완료 처리해주세요!',
+                        overdue: s.ship_done_date < today
+                    });
+                }
+            }
+        });
+
+        const banner = document.getElementById('alertBanner');
+        const body   = document.getElementById('alertBody');
+        const header = document.getElementById('alertHeaderText');
+
+        if (alerts.length === 0) {
+            banner.classList.remove('show');
             return;
         }
-        historyContent.innerHTML = '<div class="empty-state">⏳ 불러오는 중...</div>';
 
-        const q = {
-            doc:       $('searchDoc').value.trim(),
-            requester: $('searchRequester').value.trim(),
-            project:   $('searchProject').value.trim(),
-            code:      $('searchCode').value.trim(),
-            name:      $('searchName').value.trim(),
-            spec:      $('searchSpec').value.trim(),
-            dateFrom:  $('searchDateFrom').value,
-            dateTo:    $('searchDateTo').value
-        };
+        header.textContent = '🔔 확인이 필요한 항목 ' + alerts.length + '건';
+        body.innerHTML = '';
+        alerts.forEach(function (a) {
+            const div = document.createElement('div');
+            div.className = 'alert-item' + (a.overdue ? ' overdue' : '');
+            const badge = a.nodate
+                ? '<span class="alert-badge">미입력</span>'
+                : (a.overdue
+                    ? '<span class="alert-badge">지연</span>'
+                    : '<span class="alert-badge today">오늘</span>');
+            div.innerHTML =
+                '<span class="alert-doc">' + escapeHtml(a.doc) + '</span>' +
+                '<span class="alert-msg">' + escapeHtml(a.msg) + '</span>' +
+                badge;
+            body.appendChild(div);
+        });
+        banner.classList.add('show');
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 조회 탭
+    // ══════════════════════════════════════════════════════════
+    async function loadHistory() {
+        const historyContent = document.getElementById('historyContent');
+        const statRow = document.getElementById('statRow');
+        if (!sb) {
+            historyContent.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div>Supabase 연결이 설정되지 않았습니다.</div>';
+            return;
+        }
+        historyContent.innerHTML = '<div class="empty-state"><div class="icon">⏳</div>불러오는 중...</div>';
+        statRow.style.display = 'none';
+
+        const docQuery       = document.getElementById('searchDoc').value.trim();
+        const nameQuery      = document.getElementById('searchName').value.trim();
+        const reqQuery       = document.getElementById('searchRequester').value.trim();
+        const filterArrival  = document.getElementById('filterArrival').value;
+        const filterShip     = document.getElementById('filterShip').value;
 
         try {
-            // 1. items 먼저 필터해서 해당하는 doc_no 수집
-            let itemQ = sb.from(ITEMS_TABLE).select('doc_no,p_name,p_code,name,spec,qty,requester,uploaded_at');
-            if (q.doc)       itemQ = itemQ.ilike('doc_no', '%' + q.doc + '%');
-            if (q.requester) itemQ = itemQ.ilike('requester', '%' + q.requester + '%');
-            if (q.project)   itemQ = itemQ.ilike('p_name', '%' + q.project + '%');
-            if (q.code)      itemQ = itemQ.ilike('p_code', '%' + q.code + '%');
-            if (q.name)      itemQ = itemQ.ilike('name', '%' + q.name + '%');
-            if (q.spec)      itemQ = itemQ.ilike('spec', '%' + q.spec + '%');
-            const itemRes = await itemQ.limit(5000);
-            if (itemRes.error) throw itemRes.error;
-            const items = itemRes.data || [];
+            // 1) 품목 데이터 로드
+            let q = sb.from(ITEMS_TABLE).select('*').order('uploaded_at', { ascending: false }).limit(1000);
+            if (docQuery)  q = q.ilike('doc_no',    '%' + docQuery  + '%');
+            if (nameQuery) q = q.ilike('name',      '%' + nameQuery + '%');
+            if (reqQuery)  q = q.ilike('requester', '%' + reqQuery  + '%');
 
-            // 2. 관련 doc_no 추출
-            const docNos = Array.from(new Set(items.map(i => i.doc_no)));
-            if (docNos.length === 0) {
-                historyContent.innerHTML = '<div class="empty-state">조건에 맞는 데이터가 없습니다.</div>';
+            const { data: items, error: itemErr } = await q;
+            if (itemErr) throw itemErr;
+
+            // 2) 상태 데이터 로드 (전체 — 알림 판단용)
+            const { data: allStatuses, error: stErr } = await sb.from(STATUS_TABLE).select('*');
+            if (stErr) throw stErr;
+
+            // 알림 배너 갱신
+            checkAlerts(allStatuses || []);
+
+            // 상태맵 (doc_no → status 객체)
+            const statusMap = {};
+            (allStatuses || []).forEach(function (s) { statusMap[s.doc_no] = s; });
+
+            if (!items || items.length === 0) {
+                historyContent.innerHTML = '<div class="empty-state"><div class="icon">📭</div>저장된 데이터가 없습니다.</div>';
                 return;
             }
 
-            // 3. 문서 메타 조회 (+ 기안일 기간 필터)
-            let docQ = sb.from(DOCS_TABLE).select('*').in('doc_no', docNos);
-            if (q.dateFrom) docQ = docQ.gte('drafted_at', q.dateFrom);
-            if (q.dateTo)   docQ = docQ.lte('drafted_at', q.dateTo);
-            const docRes = await docQ.order('drafted_at', { ascending: false, nullsFirst: false });
-            if (docRes.error) throw docRes.error;
-            const docs = docRes.data || [];
+            // 3) 문서번호별 그룹화
+            const groups = {};
+            const groupOrder = [];
+            items.forEach(function (row) {
+                if (!groups[row.doc_no]) {
+                    groups[row.doc_no] = { meta: row, items: [] };
+                    groupOrder.push(row.doc_no);
+                }
+                groups[row.doc_no].items.push(row);
+            });
 
-            if (docs.length === 0) {
-                historyContent.innerHTML = '<div class="empty-state">조건에 맞는 문서가 없습니다.</div>';
+            // 4) 상태 필터 적용
+            const today = todayStr();
+            const filtered = groupOrder.filter(function (docNo) {
+                const s = statusMap[docNo] || {};
+                if (filterArrival === 'done')    return !!s.arrival_done;
+                if (filterArrival === 'pending') return !s.arrival_done;
+                if (filterArrival === 'nodate')  return !s.expected_arrival && !s.arrival_done;
+                if (filterShip === 'done')    return !!s.ship_done;
+                if (filterShip === 'started') return !!s.ship_start_date && !s.ship_done;
+                if (filterShip === 'none')    return !s.ship_start_date;
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                historyContent.innerHTML = '<div class="empty-state"><div class="icon">🔍</div>검색 조건에 맞는 문서가 없습니다.</div>';
                 return;
             }
 
-            // 4. 문서별 품목 그룹화
-            const itemsByDoc = {};
-            items.forEach(i => {
-                if (!itemsByDoc[i.doc_no]) itemsByDoc[i.doc_no] = [];
-                itemsByDoc[i.doc_no].push(i);
+            // 5) 통계
+            const allDocNos = groupOrder;
+            let arrDone = 0, arrNone = 0, shipDone = 0, totalItems = 0;
+            allDocNos.forEach(function (d) {
+                const s = statusMap[d] || {};
+                totalItems += groups[d].items.length;
+                if (s.arrival_done) arrDone++;
+                if (!s.expected_arrival && !s.arrival_done) arrNone++;
+                if (s.ship_done) shipDone++;
             });
+            document.getElementById('statTotal').textContent   = filtered.length;
+            document.getElementById('statItems').textContent   = items.length;
+            document.getElementById('statArrDone').textContent = arrDone;
+            document.getElementById('statArrNone').textContent = arrNone;
+            document.getElementById('statShipDone').textContent = shipDone;
+            statRow.style.display = 'flex';
 
-            // 5. 테이블 렌더링
-            let html = '<div class="table-wrapper"><table><thead><tr>' +
-                '<th style="min-width:170px">문서번호</th>' +
-                '<th style="min-width:80px">기안자</th>' +
-                '<th style="min-width:110px">기안일</th>' +
-                '<th style="min-width:120px">입고예상일</th>' +
-                '<th style="min-width:70px">품목수</th>' +
-                '<th style="min-width:250px">대표 프로젝트/품목</th>' +
-                '</tr></thead><tbody>';
-
-            docs.forEach(function (d) {
-                const docItems = itemsByDoc[d.doc_no] || [];
-                const firstItem = docItems[0] || {};
-                const preview = (firstItem.p_name || '-') + ' · ' + (firstItem.name || '-') +
-                                (docItems.length > 1 ? ' 외 ' + (docItems.length - 1) + '건' : '');
-                const arrivalHtml = d.expected_arrival
-                    ? '<span class="arrival-set">' + d.expected_arrival + '</span>'
-                    : '<span class="arrival-pending">미정</span>';
-
-                html += '<tr>' +
-                    '<td><a class="link" data-doc="' + escapeHtml(d.doc_no) + '">' + escapeHtml(d.doc_no) + '</a></td>' +
-                    '<td>' + escapeHtml(d.requester || '-') + '</td>' +
-                    '<td>' + (d.drafted_at || '-') + '</td>' +
-                    '<td>' + arrivalHtml + '</td>' +
-                    '<td>' + docItems.length + '</td>' +
-                    '<td class="wrap" style="text-align:left">' + escapeHtml(preview) + '</td>' +
-                    '</tr>';
-            });
-
-            html += '</tbody></table></div>';
-            html += '<p style="margin-top:12px;color:var(--text-muted);font-size:13px;">총 문서 ' + docs.length + '건 / 품목 ' + items.length + '건</p>';
-            historyContent.innerHTML = html;
-
-            // 링크 이벤트
-            historyContent.querySelectorAll('.link[data-doc]').forEach(function (a) {
-                a.addEventListener('click', function () { openDetail(a.dataset.doc); });
+            // 6) 렌더링
+            historyContent.innerHTML = '';
+            filtered.forEach(function (docNo) {
+                const group = groups[docNo];
+                const s = statusMap[docNo] || {};
+                historyContent.appendChild(buildDocCard(docNo, group, s, statusMap));
             });
 
         } catch (err) {
@@ -748,107 +1025,291 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         }
     }
 
-    // ---------- 상세 팝업 ----------
-    async function openDetail(docNo) {
-        if (!sb) return;
-        modalDocNo = docNo;
-        try {
-            const [docRes, itemsRes] = await Promise.all([
-                sb.from(DOCS_TABLE).select('*').eq('doc_no', docNo).maybeSingle(),
-                sb.from(ITEMS_TABLE).select('*').eq('doc_no', docNo)
-            ]);
-            if (docRes.error)   throw docRes.error;
-            if (itemsRes.error) throw itemsRes.error;
+    // ── 문서 카드 생성 ──
+    function buildDocCard(docNo, group, status, statusMap) {
+        const today = todayStr();
+        const wrap = document.createElement('div');
+        wrap.className = 'doc-group';
+        wrap.dataset.docno = docNo;
 
-            const doc = docRes.data || { doc_no: docNo };
-            const items = itemsRes.data || [];
+        // 칩 계산
+        const arrChip = buildArrivalChip(status, today);
+        const shipStartChip = buildShipStartChip(status, today);
+        const shipDoneChip  = buildShipDoneChip(status, today);
 
-            $('modalTitle').innerText = '📄 ' + docNo;
-            $('mDocNo').innerText     = doc.doc_no || docNo;
-            $('mRequester').innerText = doc.requester || (items[0] && items[0].requester) || '-';
-            $('mDrafted').innerText   = doc.drafted_at || '-';
-            $('mItemCount').innerText = items.length;
-            $('mArrival').value       = doc.expected_arrival || '';
+        // 헤더
+        const header = document.createElement('div');
+        header.className = 'doc-group-header';
+        header.innerHTML =
+            '<span class="doc-no-badge">' + escapeHtml(docNo) + '</span>' +
+            '<span class="doc-meta"><strong>' + escapeHtml(group.meta.requester || '-') + '</strong> · ' +
+            formatDatetime(group.meta.uploaded_at) + ' 업로드</span>' +
+            '<div class="doc-status-row">' +
+            arrChip + shipStartChip + shipDoneChip +
+            '<span style="font-size:12px;color:var(--text-muted);margin-left:4px;">▼</span>' +
+            '</div>';
 
-            const body = $('mItemBody');
-            body.innerHTML = '';
-            items.forEach(function (it) {
-                const tr = document.createElement('tr');
-                tr.innerHTML =
-                    '<td class="wrap" style="text-align:left">' + escapeHtml(it.p_name || '') + '</td>' +
-                    '<td>' + escapeHtml(it.p_code || '') + '</td>' +
-                    '<td class="wrap" style="text-align:left">' + escapeHtml(it.name || '') + '</td>' +
-                    '<td class="wrap" style="text-align:left">' + escapeHtml(it.spec || '') + '</td>' +
-                    '<td>' + (it.qty || 0) + '</td>';
-                body.appendChild(tr);
+        // 상태 패널 (접기/펼치기)
+        const panel = document.createElement('div');
+        panel.className = 'status-panel';
+        panel.innerHTML = buildStatusPanelHTML(docNo, status);
+
+        header.addEventListener('click', function () {
+            panel.classList.toggle('open');
+            const arrow = header.querySelector('span:last-child');
+            arrow.textContent = panel.classList.contains('open') ? '▲' : '▼';
+        });
+
+        // 저장 버튼 이벤트
+        const savePanelBtn = panel.querySelector('.save-status-btn');
+        if (savePanelBtn) {
+            savePanelBtn.addEventListener('click', function () {
+                saveDocStatus(docNo, panel, wrap, statusMap);
             });
+        }
 
-            $('detailModal').classList.add('show');
+        // 품목 테이블
+        const itemsWrap = document.createElement('div');
+        itemsWrap.className = 'items-table-wrap';
+        let tableHtml =
+            '<table><thead><tr>' +
+            '<th>프로젝트명</th><th>코드</th><th>품명</th><th>규격</th><th>수량</th>' +
+            '</tr></thead><tbody>';
+        group.items.forEach(function (row) {
+            tableHtml +=
+                '<tr>' +
+                '<td>' + escapeHtml(row.p_name || '') + '</td>' +
+                '<td style="font-family:\'JetBrains Mono\',monospace;font-size:12px;">' + escapeHtml(row.p_code || '') + '</td>' +
+                '<td>' + escapeHtml(row.name || '') + '</td>' +
+                '<td>' + escapeHtml(row.spec || '') + '</td>' +
+                '<td style="font-weight:600;">' + (row.qty || 0) + '</td>' +
+                '</tr>';
+        });
+        tableHtml += '</tbody></table>';
+        itemsWrap.innerHTML = tableHtml;
+
+        const countBar = document.createElement('div');
+        countBar.className = 'items-count-bar';
+        countBar.textContent = '총 ' + group.items.length + '개 품목';
+
+        wrap.appendChild(header);
+        wrap.appendChild(panel);
+        wrap.appendChild(itemsWrap);
+        wrap.appendChild(countBar);
+        return wrap;
+    }
+
+    function buildStatusPanelHTML(docNo, s) {
+        return '<div class="status-grid">' +
+            // 입고예상일
+            '<div class="status-field">' +
+            '<label>📦 입고예정일</label>' +
+            '<input type="date" class="sf-expected_arrival" value="' + (s.expected_arrival || '') + '">' +
+            '</div>' +
+            // 입고완료
+            '<div class="status-field" style="justify-content:flex-end;">' +
+            '<label>✅ 입고완료</label>' +
+            '<div class="checkbox-row">' +
+            '<input type="checkbox" id="arr_done_' + escapeHtml(docNo) + '" class="sf-arrival_done"' + (s.arrival_done ? ' checked' : '') + '>' +
+            '<label for="arr_done_' + escapeHtml(docNo) + '">' + (s.arrival_done ? '입고완료' : '미완료') + '</label>' +
+            '</div>' +
+            '</div>' +
+            // 배송시작일
+            '<div class="status-field">' +
+            '<label>🚚 배송시작일</label>' +
+            '<input type="date" class="sf-ship_start_date" value="' + (s.ship_start_date || '') + '">' +
+            '</div>' +
+            // 배송완료일
+            '<div class="status-field">' +
+            '<label>📬 배송완료일</label>' +
+            '<input type="date" class="sf-ship_done_date" value="' + (s.ship_done_date || '') + '">' +
+            '</div>' +
+            // 배송완료 여부
+            '<div class="status-field" style="justify-content:flex-end;">' +
+            '<label>🎯 배송완료</label>' +
+            '<div class="checkbox-row">' +
+            '<input type="checkbox" id="ship_done_' + escapeHtml(docNo) + '" class="sf-ship_done"' + (s.ship_done ? ' checked' : '') + '>' +
+            '<label for="ship_done_' + escapeHtml(docNo) + '">' + (s.ship_done ? '배송완료' : '미완료') + '</label>' +
+            '</div>' +
+            '</div>' +
+            // 비고
+            '<div class="status-field" style="grid-column:1/-1;">' +
+            '<label>📝 비고</label>' +
+            '<textarea class="sf-memo">' + escapeHtml(s.memo || '') + '</textarea>' +
+            '</div>' +
+            '</div>' +
+            '<div class="status-save-bar">' +
+            '<button class="btn btn-success save-status-btn" type="button">💾 저장</button>' +
+            '</div>';
+    }
+
+    // ── 상태 저장 ──
+    async function saveDocStatus(docNo, panel, cardEl, statusMap) {
+        if (!sb) { showToast('Supabase 연결 오류', 'error'); return; }
+        const btn = panel.querySelector('.save-status-btn');
+        btn.disabled = true;
+
+        try {
+            const expectedArrival = panel.querySelector('.sf-expected_arrival').value || null;
+            const arrivalDone     = panel.querySelector('.sf-arrival_done').checked;
+            const shipStartDate   = panel.querySelector('.sf-ship_start_date').value || null;
+            const shipDoneDate    = panel.querySelector('.sf-ship_done_date').value || null;
+            const shipDone        = panel.querySelector('.sf-ship_done').checked;
+            const memo            = panel.querySelector('.sf-memo').value.trim();
+
+            const payload = {
+                doc_no:            docNo,
+                expected_arrival:  expectedArrival,
+                arrival_done:      arrivalDone,
+                arrival_done_at:   arrivalDone ? (statusMap[docNo] && statusMap[docNo].arrival_done_at ? statusMap[docNo].arrival_done_at : new Date().toISOString()) : null,
+                ship_start_date:   shipStartDate,
+                ship_done:         shipDone,
+                ship_done_date:    shipDoneDate,
+                ship_done_at:      shipDone ? (statusMap[docNo] && statusMap[docNo].ship_done_at ? statusMap[docNo].ship_done_at : new Date().toISOString()) : null,
+                memo:              memo
+            };
+
+            // upsert (doc_no unique)
+            const { error } = await sb.from(STATUS_TABLE).upsert(payload, { onConflict: 'doc_no' });
+            if (error) throw error;
+
+            // 로컬 맵 갱신
+            statusMap[docNo] = payload;
+
+            // 헤더 칩 갱신
+            const today = todayStr();
+            const chipRow = cardEl.querySelector('.doc-status-row');
+            if (chipRow) {
+                const arrow = chipRow.lastElementChild;
+                chipRow.innerHTML =
+                    buildArrivalChip(payload, today) +
+                    buildShipStartChip(payload, today) +
+                    buildShipDoneChip(payload, today);
+                chipRow.appendChild(arrow);
+            }
+
+            // 체크박스 라벨 갱신
+            const arrLabel = panel.querySelector('label[for="arr_done_' + escapeHtml(docNo) + '"]');
+            if (arrLabel) arrLabel.textContent = arrivalDone ? '입고완료' : '미완료';
+            const shipLabel = panel.querySelector('label[for="ship_done_' + escapeHtml(docNo) + '"]');
+            if (shipLabel) shipLabel.textContent = shipDone ? '배송완료' : '미완료';
+
+            // 알림 배너 재계산
+            const allVals = Object.values(statusMap);
+            checkAlerts(allVals);
+
+            showToast('✅ [' + docNo + '] 상태 저장 완료', 'success');
         } catch (err) {
             console.error(err);
-            showToast('❌ 상세 조회 실패: ' + err.message, 'error');
+            showToast('❌ 저장 실패: ' + (err.message || err), 'error');
+        } finally {
+            btn.disabled = false;
         }
     }
 
-    $('modalClose').addEventListener('click', () => $('detailModal').classList.remove('show'));
-    $('detailModal').addEventListener('click', function (e) {
-        if (e.target === $('detailModal')) $('detailModal').classList.remove('show');
-    });
-
-    $('mSaveArrival').addEventListener('click', async function () {
-        if (!sb || !modalDocNo) return;
-        const val = $('mArrival').value || null;
-        try {
-            const res = await sb.from(DOCS_TABLE).upsert({ doc_no: modalDocNo, expected_arrival: val }, { onConflict: 'doc_no' });
-            if (res.error) throw res.error;
-            showToast('✅ 입고예상일이 저장되었습니다.', 'success');
-            loadHistory();
-        } catch (err) {
-            console.error(err);
-            showToast('❌ 저장 실패: ' + err.message, 'error');
+    // ── 칩 생성 헬퍼 ──
+    function buildArrivalChip(s, today) {
+        if (s.arrival_done) {
+            return '<span class="status-chip chip-done">✅ 입고완료</span>';
         }
-    });
-
-    $('mClearArrival').addEventListener('click', async function () {
-        if (!sb || !modalDocNo) return;
-        try {
-            const res = await sb.from(DOCS_TABLE).update({ expected_arrival: null }).eq('doc_no', modalDocNo);
-            if (res.error) throw res.error;
-            $('mArrival').value = '';
-            showToast('입고예상일이 지워졌습니다.', 'success');
-            loadHistory();
-        } catch (err) {
-            console.error(err);
-            showToast('❌ 삭제 실패: ' + err.message, 'error');
+        if (!s.expected_arrival) {
+            return '<span class="status-chip chip-none">📦 입고일 미입력</span>';
         }
-    });
-
-    $('mDeleteDoc').addEventListener('click', async function () {
-        if (!sb || !modalDocNo) return;
-        if (!confirm('문서 ' + modalDocNo + ' 과 관련된 모든 품목을 삭제할까요?\n이 작업은 되돌릴 수 없습니다.')) return;
-        try {
-            const r1 = await sb.from(ITEMS_TABLE).delete().eq('doc_no', modalDocNo);
-            if (r1.error) throw r1.error;
-            const r2 = await sb.from(DOCS_TABLE).delete().eq('doc_no', modalDocNo);
-            if (r2.error) throw r2.error;
-            showToast('🗑 문서가 삭제되었습니다.', 'success');
-            $('detailModal').classList.remove('show');
-            loadHistory();
-        } catch (err) {
-            console.error(err);
-            showToast('❌ 삭제 실패: ' + err.message, 'error');
+        if (s.expected_arrival < today) {
+            return '<span class="status-chip chip-overdue">⚠️ 입고지연 (' + formatDateShort(s.expected_arrival) + ')</span>';
         }
-    });
+        if (s.expected_arrival === today) {
+            return '<span class="status-chip chip-pending">📦 입고예정 오늘</span>';
+        }
+        return '<span class="status-chip chip-pending">📦 입고예정 ' + formatDateShort(s.expected_arrival) + '</span>';
+    }
 
-    // ---------- 토스트 ----------
+    function buildShipStartChip(s, today) {
+        if (!s.ship_start_date) return '<span class="status-chip chip-none">🚚 배송 전</span>';
+        if (s.ship_start_date <= today) {
+            return '<span class="status-chip chip-pending">🚚 배송중</span>';
+        }
+        return '<span class="status-chip chip-none">🚚 배송예정 ' + formatDateShort(s.ship_start_date) + '</span>';
+    }
+
+    function buildShipDoneChip(s, today) {
+        if (s.ship_done) return '<span class="status-chip chip-done">📬 배송완료</span>';
+        if (s.ship_done_date && s.ship_done_date < today) {
+            return '<span class="status-chip chip-overdue">⚠️ 배송지연 (' + formatDateShort(s.ship_done_date) + ')</span>';
+        }
+        if (s.ship_done_date && s.ship_done_date === today) {
+            return '<span class="status-chip chip-pending">📬 배송완료예정 오늘</span>';
+        }
+        if (s.ship_done_date) {
+            return '<span class="status-chip chip-none">📬 완료예정 ' + formatDateShort(s.ship_done_date) + '</span>';
+        }
+        return '';
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 유틸
+    // ══════════════════════════════════════════════════════════
+    function todayStr() {
+        const d = new Date();
+        return d.getFullYear() + '-' +
+            String(d.getMonth() + 1).padStart(2, '0') + '-' +
+            String(d.getDate()).padStart(2, '0');
+    }
+
+    function formatDateShort(str) {
+        if (!str) return '';
+        const parts = str.split('-');
+        return parts[1] + '/' + parts[2];
+    }
+
+    function formatDateKo(str) {
+        if (!str) return '';
+        const parts = str.split('-');
+        return parts[0] + '년 ' + parseInt(parts[1]) + '월 ' + parseInt(parts[2]) + '일';
+    }
+
+    function formatDatetime(iso) {
+        if (!iso) return '';
+        return new Date(iso).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function escapeHtml(str) {
+        return String(str || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    // ── 토스트 ──
     let toastTimer;
     function showToast(msg, type) {
-        const toast = $('toast');
-        toast.textContent = msg;
-        toast.className = 'toast show ' + (type || '');
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
+        const container = document.getElementById('toastContainer');
+        const div = document.createElement('div');
+        div.className = 'toast ' + (type || '');
+        div.textContent = msg;
+        container.appendChild(div);
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () { div.classList.add('show'); });
+        });
+        setTimeout(function () {
+            div.classList.remove('show');
+            setTimeout(function () { div.remove(); }, 350);
+        }, 3800);
     }
+
+    // ── 페이지 로드 시 알림 확인 ──
+    (async function initAlerts() {
+        if (!sb) return;
+        try {
+            const { data } = await sb.from(STATUS_TABLE).select('*');
+            if (data) checkAlerts(data);
+        } catch (e) {
+            console.warn('알림 초기화 오류:', e);
+        }
+    })();
+
 })();
 </script>
 </body>

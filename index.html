@@ -1004,6 +1004,15 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   );
   document.getElementById('sArrStat').value  = '';
   document.getElementById('sShipStat').value = '';
+  // 뷰를 문서별로 초기화
+  gCurrentView = 'doc';
+  // 결과 영역 초기화 후 전체 재조회
+  document.getElementById('listArea').innerHTML = '<div class="empty-state"><div class="es-icon">⏳</div><p>불러오는 중...</p></div>';
+  document.getElementById('allItemsArea').innerHTML = '';
+  document.getElementById('allItemsArea').style.display = 'none';
+  document.getElementById('viewToggleBar').style.display = 'none';
+  document.getElementById('statRow').style.display = 'none';
+  loadList();
 });
 
 async function loadList() {
@@ -1047,8 +1056,10 @@ async function loadList() {
     gStatusMap = {};
     (allSt || []).forEach(s => { gStatusMap[s.doc_no] = s; });
 
-    // 알림 배너 갱신 (페이지 로드/조회 시 항상)
-    checkAlerts(allSt || []);
+    // 알림 배너 갱신 — purchase_items의 모든 문서번호 기준 (상태 미등록 문서도 포함)
+    const allDocNosForAlert = [...new Set((items || []).map(r => r.doc_no))];
+    const alertTargets = allDocNosForAlert.map(doc => gStatusMap[doc] || { doc_no: doc });
+    checkAlerts(alertTargets);
 
     if (!items || items.length === 0) {
       area.innerHTML = '<div class="empty-state"><div class="es-icon">📭</div><p>저장된 데이터가 없습니다.</p></div>';
@@ -1532,11 +1543,24 @@ function showToast(msg, type) {
 (async () => {
   if (!sb) return;
   try {
-    const { data } = await sb.from(STATUS_TBL).select('*');
-    if (data) {
-      data.forEach(s => { gStatusMap[s.doc_no] = s; });
-      checkAlerts(data);
-    }
+    // 1) 저장된 모든 문서번호 가져오기
+    const { data: allItems } = await sb
+      .from(ITEMS_TBL)
+      .select('doc_no')
+      .limit(2000);
+
+    // 2) 상태 테이블 가져오기
+    const { data: allSt } = await sb.from(STATUS_TBL).select('*');
+
+    const stMap = {};
+    (allSt || []).forEach(s => { stMap[s.doc_no] = s; });
+
+    // 3) 문서번호별로 상태가 없으면 빈 객체 채워서 알림 체크
+    const uniqueDocs = [...new Set((allItems || []).map(r => r.doc_no))];
+    const alertList = uniqueDocs.map(doc => stMap[doc] || { doc_no: doc });
+
+    gStatusMap = stMap;
+    checkAlerts(alertList);
   } catch(e) { console.warn('알림 초기화 오류:', e); }
 })();
 </script>

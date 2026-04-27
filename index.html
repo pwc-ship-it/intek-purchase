@@ -542,6 +542,44 @@ input.editable:focus { outline: none; border-color: var(--primary); background: 
 .toast.error   { background: var(--danger-light); }
 .toast.warning { background: var(--warning-light); }
 
+/* ══ 뷰 토글 버튼 ══ */
+.view-toggle-btn {
+  padding: 7px 16px;
+  border: 1px solid var(--gray300);
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  background: #fff;
+  color: var(--gray600);
+  transition: all 0.15s;
+}
+.view-toggle-btn:hover { background: var(--gray50); color: var(--primary); border-color: var(--primary); }
+.view-toggle-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* ══ 전체 품목 테이블 ══ */
+.all-items-wrap {
+  background: #fff;
+  border: 1px solid var(--gray200);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.all-items-wrap table { min-width: 900px; }
+.all-items-wrap thead th { background: var(--gray800); }
+.all-items-wrap .doc-no-cell {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.all-items-wrap .doc-no-cell:hover { text-decoration: underline; }
+/* 같은 문서번호 그룹 구분선 */
+.all-items-wrap tr.group-start td { border-top: 2px solid var(--gray200); }
+
 /* ══ 반응형 ══ */
 @media (max-width: 768px) {
   .app-body { padding: 16px; }
@@ -666,13 +704,29 @@ input.editable:focus { outline: none; border-color: var(--primary); background: 
       <div class="stat-card"><div class="sc-label">배송완료</div><div class="sc-value" id="scShipDone">0</div><div class="sc-sub">건</div></div>
     </div>
 
-    <!-- 결과 -->
+    <!-- 뷰 전환 버튼 (결과 있을 때만 표시) -->
+    <div id="viewToggleBar" style="display:none; margin-bottom:12px;">
+      <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+        <button class="view-toggle-btn active" id="btnViewDoc" onclick="switchView('doc')">
+          📋 문서별 보기
+        </button>
+        <button class="view-toggle-btn" id="btnViewAll" onclick="switchView('all')">
+          📦 전체 품목 펼쳐보기
+        </button>
+        <span id="viewAllCount" style="font-size:12px; color:var(--gray400); margin-left:4px;"></span>
+      </div>
+    </div>
+
+    <!-- 결과 (문서별) -->
     <div id="listArea">
       <div class="empty-state">
         <div class="es-icon">📋</div>
         <p>검색 버튼을 눌러 저장된 데이터를 불러오세요.</p>
       </div>
     </div>
+
+    <!-- 전체 품목 펼치기 뷰 -->
+    <div id="allItemsArea" style="display:none;"></div>
   </div>
 
 </div><!-- /app-body -->
@@ -793,6 +847,10 @@ let gModalDocNo  = null; // 현재 열린 모달의 doc_no
 let gUploadDocNo = '';
 let gUploadUser  = '';
 let gUploadDate  = '';
+let gLastFilteredItems = [];  // 마지막 검색 결과 품목 전체
+let gLastGroups        = {};  // 마지막 그룹맵
+let gLastFiltered      = [];  // 마지막 filtered doc_no 배열
+let gCurrentView       = 'doc'; // 현재 뷰 ('doc' | 'all')
 
 // ── 알림 접기/펼치기 ──
 let alertCollapsed = false;
@@ -1100,10 +1158,133 @@ async function loadList() {
 
     area.appendChild(wrap);
 
+    // ── 전체 품목 뷰 데이터 저장 & 토글바 표시 ──
+    gLastFilteredItems = items.filter(row => filtered.includes(row.doc_no));
+    gLastGroups        = groups;
+    gLastFiltered      = filtered;
+
+    const toggleBar = document.getElementById('viewToggleBar');
+    toggleBar.style.display = 'block';
+    document.getElementById('viewAllCount').textContent =
+      '총 ' + gLastFilteredItems.length + '개 품목 / ' + filtered.length + '개 문서';
+
+    // 현재 뷰 상태 유지
+    switchView(gCurrentView || 'doc');
+
   } catch(err) {
     console.error(err);
     area.innerHTML = `<div class="empty-state" style="color:var(--danger)">❌ 조회 실패: ${esc(err.message||String(err))}</div>`;
+    document.getElementById('viewToggleBar').style.display = 'none';
   }
+}
+
+// ══════════════════════════════════════════════════════
+// 뷰 전환 (문서별 / 전체 품목)
+// ══════════════════════════════════════════════════════
+function switchView(mode) {
+  gCurrentView = mode;
+  const docArea  = document.getElementById('listArea');
+  const allArea  = document.getElementById('allItemsArea');
+  const btnDoc   = document.getElementById('btnViewDoc');
+  const btnAll   = document.getElementById('btnViewAll');
+
+  if (mode === 'all') {
+    docArea.style.display = 'none';
+    allArea.style.display = 'block';
+    btnDoc.classList.remove('active');
+    btnAll.classList.add('active');
+    renderAllItems();
+  } else {
+    docArea.style.display = 'block';
+    allArea.style.display = 'none';
+    btnDoc.classList.add('active');
+    btnAll.classList.remove('active');
+  }
+}
+
+function renderAllItems() {
+  const allArea = document.getElementById('allItemsArea');
+  const today   = todayStr();
+
+  if (!gLastFilteredItems.length) {
+    allArea.innerHTML = '<div class="empty-state"><div class="es-icon">📭</div><p>품목이 없습니다.</p></div>';
+    return;
+  }
+
+  // 정렬: 문서번호 순 → 같은 문서 품목끼리 묶음
+  const sorted = [...gLastFilteredItems].sort((a, b) => a.doc_no.localeCompare(b.doc_no));
+
+  let prevDocNo = null;
+  let rowsHtml  = '';
+
+  sorted.forEach(row => {
+    const s        = gStatusMap[row.doc_no] || {};
+    const isNew    = row.doc_no !== prevDocNo;
+    const rowClass = isNew ? 'group-start' : '';
+
+    // 문서번호 셀: 같은 문서 첫 행만 표시 (rowspan 없이 텍스트로)
+    const docCell = isNew
+      ? `<td class="doc-no-cell" data-docno="${esc(row.doc_no)}">${esc(row.doc_no)}</td>`
+      : `<td style="border-right:1px solid var(--gray100)"></td>`;
+
+    // 상태 칩 (첫 행만 표시)
+    const arrCell = isNew
+      ? `<td>${arrivalChip(s, today)}</td>`
+      : `<td></td>`;
+    const shipCell = isNew
+      ? `<td>${shipDoneChip(s, today)}</td>`
+      : `<td></td>`;
+    const reqCell = isNew
+      ? `<td style="font-size:12px">${esc(row.requester||'-')}</td>`
+      : `<td></td>`;
+
+    rowsHtml += `<tr class="${rowClass}">
+      ${docCell}
+      ${reqCell}
+      <td style="font-size:12px;color:var(--gray500)">${esc(row.p_name||'')}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--gray500)">${esc(row.p_code||'')}</td>
+      <td style="text-align:left;font-weight:600">${esc(row.name||'')}</td>
+      <td style="text-align:left;font-size:12px;color:var(--gray600)">${esc(row.spec||'')}</td>
+      <td style="font-weight:700;color:var(--primary)">${row.qty||0}</td>
+      ${arrCell}
+      ${shipCell}
+    </tr>`;
+
+    prevDocNo = row.doc_no;
+  });
+
+  const html = `
+    <div class="all-items-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="min-width:160px">문서번호</th>
+            <th style="min-width:70px">기안자</th>
+            <th style="min-width:140px">프로젝트명</th>
+            <th style="min-width:110px">코드</th>
+            <th style="min-width:200px;text-align:left">품명</th>
+            <th style="min-width:180px;text-align:left">규격</th>
+            <th style="min-width:60px">수량</th>
+            <th style="min-width:100px">입고완료</th>
+            <th style="min-width:100px">배송완료</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      <div class="tbl-footer">
+        총 <strong>${sorted.length}</strong>개 품목 /
+        <strong>${gLastFiltered.length}</strong>개 문서
+      </div>
+    </div>`;
+
+  allArea.innerHTML = html;
+
+  // 문서번호 클릭 → 모달
+  allArea.querySelectorAll('.doc-no-cell').forEach(cell => {
+    cell.addEventListener('click', () => {
+      openModal(cell.dataset.docno, gLastGroups, gStatusMap);
+    });
+  });
 }
 
 // ══════════════════════════════════════════════════════
@@ -1200,8 +1381,8 @@ async function saveModal() {
     showToast('✅ [' + gModalDocNo + '] 상태 저장 완료', 'success');
     document.getElementById('docModal').classList.remove('open');
 
-    // 목록 갱신
-    loadList();
+    // 목록 갱신 (현재 뷰 유지)
+    await loadList();
   } catch(err) {
     showToast('❌ ' + (err.message||err), 'error');
   } finally {

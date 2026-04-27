@@ -186,113 +186,16 @@ body {
 .btn-sm { padding: 5px 10px; font-size: 12px; }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* ══ 진행바 ══ */
-.progress-wrap {
+/* ══ 로딩 ══ */
+.loading-msg {
   display: none;
-  margin-top: 16px;
-  background: #fff;
-  border: 1px solid var(--gray200);
-  border-radius: var(--radius-lg);
-  padding: 20px 24px;
-  box-shadow: var(--shadow);
-}
-.progress-wrap.show { display: block; }
-.progress-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-.progress-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  text-align: center;
+  padding: 12px;
+  color: var(--warning-light);
   font-weight: 600;
-  color: var(--gray600);
+  font-size: 14px;
 }
-.progress-spinner {
-  width: 16px; height: 16px;
-  border: 2px solid var(--gray200);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: p-spin 0.7s linear infinite;
-  flex-shrink: 0;
-}
-@keyframes p-spin { to { transform: rotate(360deg); } }
-.progress-pct {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--primary);
-  font-family: 'JetBrains Mono', monospace;
-  min-width: 44px;
-  text-align: right;
-}
-.progress-track {
-  width: 100%;
-  height: 8px;
-  background: var(--gray100);
-  border-radius: 100px;
-  overflow: hidden;
-  margin-bottom: 14px;
-}
-.progress-fill {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, var(--primary), #3b82f6);
-  border-radius: 100px;
-  transition: width 0.45s ease;
-}
-.progress-steps {
-  display: flex;
-  justify-content: space-between;
-  position: relative;
-}
-.progress-steps::before {
-  content: '';
-  position: absolute;
-  top: 9px; left: 9px; right: 9px;
-  height: 2px;
-  background: var(--gray200);
-  z-index: 0;
-}
-.p-step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  z-index: 1;
-  flex: 1;
-}
-.p-dot {
-  width: 20px; height: 20px;
-  border-radius: 50%;
-  border: 2px solid var(--gray300);
-  background: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 9px; font-weight: 700;
-  color: var(--gray400);
-  transition: all 0.3s;
-}
-.p-step.active .p-dot {
-  border-color: var(--primary);
-  background: var(--primary-pale);
-  color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(26,86,219,0.12);
-}
-.p-step.done .p-dot {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: #fff;
-}
-.p-txt {
-  font-size: 10px;
-  color: var(--gray400);
-  font-weight: 500;
-  white-space: nowrap;
-}
-.p-step.active .p-txt { color: var(--primary); font-weight: 700; }
-.p-step.done  .p-txt  { color: var(--primary); font-weight: 600; }
+.loading-msg.show { display: block; }
 
 /* ══ 업로드 미리보기 ══ */
 .preview-header {
@@ -726,27 +629,7 @@ input.editable:focus { outline: none; border-color: var(--primary); background: 
       <button class="btn btn-primary" type="button" id="selectFileBtn">파일 선택</button>
       <input type="file" id="fileInput" accept=".html,.htm" style="display:none">
       <p>지원 형식: .html / .htm</p>
-    </div>
-
-    <!-- 진행바 -->
-    <div class="progress-wrap" id="progressWrap">
-      <div class="progress-top">
-        <div class="progress-label">
-          <span class="progress-spinner"></span>
-          <span id="progressLabel">준비 중...</span>
-        </div>
-        <div class="progress-pct" id="progressPct">0%</div>
-      </div>
-      <div class="progress-track">
-        <div class="progress-fill" id="progressFill"></div>
-      </div>
-      <div class="progress-steps">
-        <div class="p-step" id="ps1"><div class="p-dot">1</div><div class="p-txt">파일 읽기</div></div>
-        <div class="p-step" id="ps2"><div class="p-dot">2</div><div class="p-txt">텍스트 추출</div></div>
-        <div class="p-step" id="ps3"><div class="p-dot">3</div><div class="p-txt">AI 분석 중</div></div>
-        <div class="p-step" id="ps4"><div class="p-dot">4</div><div class="p-txt">데이터 정리</div></div>
-        <div class="p-step" id="ps5"><div class="p-dot">✓</div><div class="p-txt">완료</div></div>
-      </div>
+      <div id="loadingMsg" class="loading-msg">🚀 데이터를 분석 중입니다...</div>
     </div>
 
     <div id="previewHeader" class="preview-header">
@@ -899,7 +782,7 @@ input.editable:focus { outline: none; border-color: var(--primary); background: 
             <input type="date" id="mShipStart">
           </div>
           <div class="seg">
-            <label>배송완료일</label>
+            <label>배송완료예정일</label>
             <input type="date" id="mShipDone">
           </div>
           <div class="seg" style="justify-content:flex-end;">
@@ -995,24 +878,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 // ══════════════════════════════════════════════════════
 const dropZone   = document.getElementById('dropZone');
 const fileInput  = document.getElementById('fileInput');
-// 진행바
-const progressWrap  = document.getElementById('progressWrap');
-const progressLabel = document.getElementById('progressLabel');
-const progressPct   = document.getElementById('progressPct');
-const progressFill  = document.getElementById('progressFill');
-const PS = ['ps1','ps2','ps3','ps4','ps5'];
-
-function setProgress(stepIdx, label, pct) {
-  progressLabel.textContent = label;
-  progressPct.textContent   = pct + '%';
-  progressFill.style.width  = pct + '%';
-  PS.forEach((id, i) => {
-    const el = document.getElementById(id);
-    el.classList.remove('done','active');
-    if (i < stepIdx)        el.classList.add('done');
-    else if (i === stepIdx) el.classList.add('active');
-  });
-}
+const loadingMsg = document.getElementById('loadingMsg');
 
 ['dragenter','dragover','dragleave','drop'].forEach(ev =>
   window.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }, false)
@@ -1036,59 +902,26 @@ document.getElementById('addRowBtn').addEventListener('click', () => appendPrevi
 document.getElementById('saveUploadBtn').addEventListener('click', saveUpload);
 
 async function handleFile(file) {
-  // 진행바 초기화
-  progressWrap.classList.add('show');
-  PS.forEach(id => document.getElementById(id).classList.remove('done','active'));
-  setProgress(0, '📂 파일을 읽는 중...', 10);
-
-  let fakeTimer = null;
+  loadingMsg.classList.add('show');
   try {
-    // 1단계: 파일 읽기
     const html = await file.text();
-
-    // 2단계: 텍스트 추출
-    setProgress(1, '📝 텍스트를 추출하는 중...', 28);
     const doc  = new DOMParser().parseFromString(html, 'text/html');
     const text = (doc.body?.innerText || '').replace(/\s+/g, ' ').trim();
     if (!text) throw new Error('HTML에서 텍스트를 추출할 수 없습니다.');
-
-    // 3단계: AI 분석 (가장 오래 걸림 → 40~82% 자동 증가)
-    setProgress(2, '🤖 AI가 품목을 분석 중... (10~30초 소요)', 40);
-    let fakePct = 40;
-    fakeTimer = setInterval(() => {
-      if (fakePct < 82) {
-        fakePct += Math.random() * 2.5 + 0.5;
-        const p = Math.min(Math.round(fakePct), 82);
-        progressPct.textContent  = p + '%';
-        progressFill.style.width = p + '%';
-      }
-    }, 700);
 
     const res  = await fetch('/api/extract', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text })
     });
-    clearInterval(fakeTimer); fakeTimer = null;
-
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '서버 오류');
-
-    // 4단계: 데이터 정리
-    setProgress(3, '🗂️ 데이터를 정리하는 중...', 90);
-    await new Promise(r => setTimeout(r, 350));
-
-    // 5단계: 완료
-    setProgress(4, '✅ 분석 완료!', 100);
-    await new Promise(r => setTimeout(r, 600));
-
     renderUpload(data);
     showToast(data.items.length + '개 품목 추출 완료', 'success');
   } catch(err) {
-    if (fakeTimer) { clearInterval(fakeTimer); fakeTimer = null; }
     showToast('⚠️ ' + err.message, 'error');
   } finally {
-    progressWrap.classList.remove('show');
+    loadingMsg.classList.remove('show');
     fileInput.value = '';
   }
 }
@@ -1294,7 +1127,7 @@ async function loadList() {
             <th>입고예정일</th>
             <th>입고완료</th>
             <th>배송시작일</th>
-            <th>배송완료일</th>
+            <th>배송완료예정일</th>
             <th>배송완료</th>
             <th>품목수</th>
             <th>대표 프로젝트/품목</th>
@@ -1613,18 +1446,12 @@ function checkAlerts(statusList) {
       }
     }
 
-    // 배송시작일
+    // 배송완료 알람: 배송완료예정일이 지난 후에만 표시
     if (!s.ship_done) {
-      if (s.ship_start_date && s.ship_start_date < today) {
-        alerts.push({ doc: s.doc_no, msg: '배송시작일 ' + fmtDateKo(s.ship_start_date) + ' — 배송 상태를 확인해주세요!', type: 'overdue' });
-      } else if (s.ship_start_date && s.ship_start_date === today) {
-        alerts.push({ doc: s.doc_no, msg: '배송시작일 입니다. 배송 상태를 확인해주세요!', type: 'today' });
-      }
-      // 배송완료일
       if (s.ship_done_date && s.ship_done_date < today) {
-        alerts.push({ doc: s.doc_no, msg: '배송완료예정일 ' + fmtDateKo(s.ship_done_date) + ' — 배송완료 처리해주세요!', type: 'overdue' });
+        alerts.push({ doc: s.doc_no, msg: '배송완료예정일 ' + fmtDateKo(s.ship_done_date) + ' 이 지났습니다. 배송완료 여부를 확인해주세요!', type: 'overdue' });
       } else if (s.ship_done_date && s.ship_done_date === today) {
-        alerts.push({ doc: s.doc_no, msg: '배송완료예정일 입니다. 배송완료 처리해주세요!', type: 'today' });
+        alerts.push({ doc: s.doc_no, msg: '오늘이 배송완료예정일 입니다. 배송완료 여부를 확인해주세요!', type: 'today' });
       }
     }
   });
@@ -1663,10 +1490,13 @@ function arrivalChip(s, today) {
 
 function shipDoneChip(s, today) {
   if (s.ship_done) return '<span class="chip chip-done">✅ 배송완료</span>';
-  if (!s.ship_done_date) return '<span class="chip chip-none">-</span>';
-  if (s.ship_done_date < today)  return `<span class="chip chip-overdue">⚠️ 지연</span>`;
-  if (s.ship_done_date === today) return '<span class="chip chip-pending">📬 오늘</span>';
-  return `<span class="chip chip-none">예정 ${fmtDate(s.ship_done_date)}</span>`;
+  if (!s.ship_done_date) {
+    if (s.ship_start_date) return '<span class="chip chip-pending">🚚 배송중</span>';
+    return '<span class="chip chip-none">-</span>';
+  }
+  if (s.ship_done_date < today)  return `<span class="chip chip-overdue">❓ 완료확인 필요</span>`;
+  if (s.ship_done_date === today) return '<span class="chip chip-pending">📬 오늘 완료예정</span>';
+  return `<span class="chip chip-none">완료예정 ${fmtDate(s.ship_done_date)}</span>`;
 }
 
 // ══════════════════════════════════════════════════════

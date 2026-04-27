@@ -2,49 +2,9 @@
 // 엔드포인트: POST /api/extract
 // Body: { text: string }
 // Response: { doc_no, user, date, items: [...] }
-
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-
-// Gemini 호출 + Rate Limit 시 자동 재시도 (최대 3회)
-async function callGemini(apiKey, prompt, retries = 3) {
-  const url = `${GEMINI_URL}?key=${apiKey}`;
-  const body = JSON.stringify({
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: {
-      temperature: 0.1,
-      responseMimeType: 'application/json',
-    },
-  });
-
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-    });
-
-    // 성공
-    if (res.ok) return res;
-
-    const errText = await res.text();
-
-    // Rate Limit (429) 또는 서버 과부하(503) → 대기 후 재시도
-    if ((res.status === 429 || res.status === 503) && attempt < retries) {
-      // 재시도 대기: 1차=5초, 2차=15초
-      const waitMs = attempt === 1 ? 5000 : 15000;
-      console.warn(`Gemini rate limit (${res.status}), attempt ${attempt}/${retries}, waiting ${waitMs}ms...`);
-      await new Promise(r => setTimeout(r, waitMs));
-      continue;
-    }
-
-    // 그 외 에러 or 재시도 소진 → 에러 객체 반환
-    const err = new Error(`Gemini API 오류 (${res.status})`);
-    err.status  = res.status;
-    err.detail  = errText.substring(0, 500);
-    err.isQuota = res.status === 429;
-    throw err;
-  }
-}
+//
+// 필요 환경변수: GROQ_API_KEY
+// Vercel > Settings > Environment Variables 에서 설정
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -60,11 +20,11 @@ export default async function handler(req, res) {
     if (!text || typeof text !== 'string')
       return res.status(400).json({ error: 'text 파라미터가 필요합니다.' });
 
-    const API_KEY = process.env.GEMINI_API_KEY;
+    const API_KEY = process.env.GROQ_API_KEY;
     if (!API_KEY)
-      return res.status(500).json({ error: '서버에 GEMINI_API_KEY가 설정되지 않았습니다.' });
+      return res.status(500).json({ error: '서버에 GROQ_API_KEY가 설정되지 않았습니다.' });
 
-    // 텍스트 길이 제한 (토큰 폭주 방지)
+    // 텍스트 길이 제한
     const trimmed = text.replace(/\s+/g, ' ').trim().substring(0, 30000);
 
     const prompt = `아래 품의서 텍스트에서 다음 정보를 JSON으로만 추출하세요. 설명, 마크다운, 코드블록 없이 순수 JSON 객체만 출력하세요.
@@ -95,42 +55,58 @@ export default async function handler(req, res) {
 품의서 데이터:
 ${trimmed}`;
 
-    let geminiRes;
-    try {
-      geminiRes = await callGemini(API_KEY, prompt);
-    } catch (err) {
-      console.error('Gemini call failed:', err);
-      if (err.isQuota) {
+    // Groq API 호출
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',  // 무료, 한국어 품질 우수
+        temperature: 0.1,
+        max_tokens: 4096,
+        response_format: { type: 'json_object' }, // JSON만 반환
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (!groqRes.ok) {
+      const errText = await groqRes.text();
+      console.error('Groq API error:', groqRes.status, errText);
+
+      if (groqRes.status === 429) {
         return res.status(429).json({
-          error: 'API 호출 한도를 초과했습니다. 1~2분 후 다시 시도해 주세요.',
-          detail: err.detail,
+          error: 'API 호출 한도를 초과했습니다. 잠시 후 다시 시도해 주세요.',
+          detail: errText.substring(0, 300),
         });
       }
-      return res.status(502).json({ error: err.message, detail: err.detail });
-    }
-
-    const geminiData = await geminiRes.json();
-
-    if (!geminiData.candidates || !geminiData.candidates[0]) {
       return res.status(502).json({
-        error: 'Gemini가 응답을 생성하지 않았습니다. (safety block 또는 quota 문제 가능)',
-        detail: geminiData,
+        error: `Groq API 오류 (${groqRes.status})`,
+        detail: errText.substring(0, 300),
       });
     }
 
-    const aiText = geminiData.candidates[0].content?.parts?.[0]?.text || '';
+    const groqData = await groqRes.json();
+    const aiText = groqData.choices?.[0]?.message?.content || '';
+
+    if (!aiText) {
+      return res.status(502).json({ error: 'Groq가 응답을 생성하지 않았습니다.' });
+    }
 
     // JSON 파싱
     let parsed;
     try {
-      parsed = JSON.parse(aiText);
+      const clean = aiText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+      parsed = JSON.parse(clean);
     } catch {
       const match = aiText.match(/\{[\s\S]*\}/);
-      if (!match)
+      if (!match) {
         return res.status(502).json({
-          error: 'Gemini 응답에서 JSON을 찾지 못했습니다.',
+          error: 'Groq 응답에서 JSON을 찾지 못했습니다.',
           raw: aiText.substring(0, 500),
         });
+      }
       parsed = JSON.parse(match[0]);
     }
 

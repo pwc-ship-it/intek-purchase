@@ -5,5 +5,8 @@
   "type": "module",
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0"
   }
 }

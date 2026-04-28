@@ -59,7 +59,12 @@ const hdrBorder = (c = C.blue) => ({
 
 // 셀에 스타일 일괄 적용
 function sc(cell, value, {fnt, fll, aln, bdr} = {}) {
-  cell.value = value;
+  // exceljs에서 수식은 { formula: '...' } 객체로 설정해야 계산됨
+  if (typeof value === 'string' && value.startsWith('=')) {
+    cell.value = { formula: value.slice(1) };
+  } else {
+    cell.value = value;
+  }
   if (fnt) cell.font      = fnt;
   if (fll) cell.fill      = fll;
   if (aln) cell.alignment = aln;

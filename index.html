@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>인텍플러스 구매관리</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -1580,219 +1579,55 @@ async function exportExcel() {
     showToast('먼저 검색을 실행해 주세요.', 'warning'); return;
   }
   const btn = document.getElementById('exportBtn');
-  btn.disabled = true; btn.textContent = '⏳ 생성 중...';
+  btn.disabled = true;
+  btn.textContent = '⏳ 생성 중...';
   try {
-    const XLSX = window.XLSX;
-    const wb   = XLSX.utils.book_new();
-    const today = new Date().toISOString().slice(0,10);
-    const docNos = [...new Set(gLastFilteredItems.map(r=>r.doc_no))];
-
-    /* ── 스타일 헬퍼 ── */
-    function ab(rgb){ const s={style:'thin',color:{rgb}}; return {top:s,bottom:s,left:s,right:s}; }
-    const S = {
-      title:   {font:{bold:true,sz:14,color:{rgb:'FFFFFF'},name:'Arial'},fill:{fgColor:{rgb:'111827'}},alignment:{horizontal:'left',vertical:'center'}},
-      navyHdr: {font:{bold:true,sz:10,color:{rgb:'FFFFFF'},name:'Arial'},fill:{fgColor:{rgb:'1A3A5C'}},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:ab('1A56DB')},
-      grayHdr: {font:{bold:true,sz:10,color:{rgb:'FFFFFF'},name:'Arial'},fill:{fgColor:{rgb:'374151'}},alignment:{horizontal:'center',vertical:'center'},border:ab('374151')},
-      docNo:   {font:{bold:true,sz:10,color:{rgb:'1A3A5C'},name:'Arial'},fill:{fgColor:{rgb:'EBF5FF'}},alignment:{horizontal:'left',vertical:'center',indent:1},border:ab('D1D5DB')},
-      even:    {font:{sz:10,name:'Arial',color:{rgb:'111827'}},fill:{fgColor:{rgb:'F3F4F6'}},alignment:{horizontal:'center',vertical:'center'},border:ab('E5E7EB')},
-      odd:     {font:{sz:10,name:'Arial',color:{rgb:'111827'}},fill:{fgColor:{rgb:'FFFFFF'}},alignment:{horizontal:'center',vertical:'center'},border:ab('E5E7EB')},
-      leftEven:{font:{sz:10,name:'Arial',color:{rgb:'111827'}},fill:{fgColor:{rgb:'F3F4F6'}},alignment:{horizontal:'left',vertical:'center',indent:1},border:ab('E5E7EB')},
-      leftOdd: {font:{sz:10,name:'Arial',color:{rgb:'111827'}},fill:{fgColor:{rgb:'FFFFFF'}},alignment:{horizontal:'left',vertical:'center',indent:1},border:ab('E5E7EB')},
-      done:    {font:{bold:true,sz:10,color:{rgb:'057A55'},name:'Arial'},fill:{fgColor:{rgb:'DEF7EC'}},alignment:{horizontal:'center',vertical:'center'},border:ab('A7F3D0')},
-      pend:    {font:{bold:true,sz:10,color:{rgb:'B45309'},name:'Arial'},fill:{fgColor:{rgb:'FEF3C7'}},alignment:{horizontal:'center',vertical:'center'},border:ab('FDE68A')},
-      late:    {font:{bold:true,sz:10,color:{rgb:'C81E1E'},name:'Arial'},fill:{fgColor:{rgb:'FDE8E8'}},alignment:{horizontal:'center',vertical:'center'},border:ab('FCA5A5')},
-      qty:     {font:{bold:true,sz:11,color:{rgb:'1A56DB'},name:'Arial'},fill:{fgColor:{rgb:'EBF5FF'}},alignment:{horizontal:'center',vertical:'center'},border:ab('D6E4FF')},
-      sec:     {font:{bold:true,sz:11,color:{rgb:'FFFFFF'},name:'Arial'},fill:{fgColor:{rgb:'1A3A5C'}},alignment:{horizontal:'left',vertical:'center'}},
-      guideLbl:{font:{bold:true,sz:10,name:'Arial',color:{rgb:'111827'}},fill:{fgColor:{rgb:'D6E4FF'}},alignment:{horizontal:'left',vertical:'center'},border:ab('D1D5DB')},
-      guide:   {font:{sz:10,name:'Arial',color:{rgb:'374151'}},fill:{fgColor:{rgb:'F9FAFB'}},alignment:{horizontal:'left',vertical:'center'},border:ab('D1D5DB')},
-      warn:    {font:{bold:true,sz:10,name:'Arial',color:{rgb:'B45309'}},fill:{fgColor:{rgb:'FEF3C7'}},alignment:{horizontal:'left',vertical:'center'},border:ab('FDE68A')},
+    // 서버(Vercel)에 items + statusMap 전달 → openpyxl로 스타일 완전 적용된 xlsx 반환
+    const payload = {
+      items:      gLastFilteredItems,
+      statusMap:  gStatusMap,
+      searchMeta: {
+        cond:    [
+          document.getElementById('sDoc')?.value,
+          document.getElementById('sUser')?.value,
+          document.getElementById('sPname')?.value,
+          document.getElementById('sCode')?.value,
+          document.getElementById('sName')?.value,
+          document.getElementById('sSpec')?.value,
+        ].filter(Boolean).join(' / ') || '전체',
+        summary: `문서 ${[...new Set(gLastFilteredItems.map(r=>r.doc_no))].length}건 / 품목 ${gLastFilteredItems.length}개`
+      }
     };
 
-    function setCell(ws,r,c,v,s){
-      const a=XLSX.utils.encode_cell({r,c}); ws[a]={v,t:typeof v==='number'?'n':'s',s};
-      const range=ws['!ref']?XLSX.utils.decode_range(ws['!ref']):{s:{r:9999,c:9999},e:{r:0,c:0}};
-      if(r<range.s.r)range.s.r=r; if(c<range.s.c)range.s.c=c;
-      if(r>range.e.r)range.e.r=r; if(c>range.e.c)range.e.c=c;
-      ws['!ref']=XLSX.utils.encode_range(range);
+    const res = await fetch('/api/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: '서버 오류' }));
+      throw new Error(err.error || `서버 오류 (${res.status})`);
     }
-    function merge(ws,r1,c1,r2,c2){if(!ws['!merges'])ws['!merges']=[];ws['!merges'].push({s:{r:r1,c:c1},e:{r:r2,c:c2}});}
 
-    /* ════ 시트1: 데이터 원본 ════ */
-    const wsD={}; wsD['!cols']=[22,22,10,12,22,18,28,28,8,13,10,13,14,10,30].map(w=>({wpx:w*7}));
-    wsD['!rows']=[{hpx:32},{hpx:30}];
-    setCell(wsD,0,0,'🛒  인텍플러스 구매관리 — 데이터 원본  |  '+today,S.title);
-    merge(wsD,0,0,0,14);
-    ['사이트','문서번호','기안자','기안일','프로젝트명','코드','품명','규격','수량','입고예정일','입고완료','배송시작일','배송완료예정일','배송완료','메모']
-      .forEach((h,ci)=>setCell(wsD,1,ci,h,S.navyHdr));
-
-    gLastFilteredItems.forEach((row,ri)=>{
-      const isE=ri%2===0, bg=isE?S.even:S.odd, bgL=isE?S.leftEven:S.leftOdd;
-      const st=gStatusMap[row.doc_no]||{};
-      const arrSt=st.arrival_done?S.done:(st.expected_arrival&&st.expected_arrival<today?S.late:S.pend);
-      const shipSt=st.ship_done?S.done:(st.ship_done_date&&st.ship_done_date<today?S.late:bg);
-      const r=ri+2; wsD['!rows'].push({hpx:22});
-      const dn={...S.docNo,fill:{fgColor:{rgb:isE?'EBF5FF':'FFFFFF'}}};
-      [
-        [SUPABASE_URL.replace('https://','').split('.')[0],bg],
-        [row.doc_no||'',dn],[row.requester||'',bg],[row.doc_date||'',bg],
-        [row.p_name||'',bgL],[row.p_code||'',bg],[row.name||'',bgL],[row.spec||'',bgL],
-        [row.qty||0,S.qty],[st.expected_arrival||'',bg],
-        [st.arrival_done?'✅ 완료':'⏳ 미완료',arrSt],
-        [st.ship_start_date||'',bg],[st.ship_done_date||'',bg],
-        [st.ship_done?'✅ 완료':(st.ship_start_date?'🚚 배송중':'—'),shipSt],
-        [st.memo||'',bgL]
-      ].forEach(([v,s],ci)=>setCell(wsD,r,ci,v,s));
-    });
-    XLSX.utils.book_append_sheet(wb,wsD,'📦 데이터');
-
-    /* ════ 시트2: 검색 결과 ════ */
-    const wsS={}; wsS['!cols']=[5,22,10,12,22,18,28,28,8,13,10,13,14,10,30].map(w=>({wpx:w*7}));
-    wsS['!rows']=[{hpx:32},{hpx:20},{hpx:22},{hpx:14},{hpx:30}];
-
-    const conds=[
-      ['문서번호',document.getElementById('sDoc')?.value||''],
-      ['기안자',document.getElementById('sUser')?.value||''],
-      ['프로젝트명',document.getElementById('sPname')?.value||''],
-      ['코드',document.getElementById('sCode')?.value||''],
-      ['품명',document.getElementById('sName')?.value||''],
-      ['규격',document.getElementById('sSpec')?.value||''],
-    ].filter(([,v])=>v).map(([k,v])=>`${k}:"${v}"`).join('  ');
-
-    setCell(wsS,0,0,'🔍  검색 결과  |  '+today,S.title); merge(wsS,0,0,0,14);
-    setCell(wsS,1,0,'검색 조건',S.grayHdr);
-    setCell(wsS,1,1,conds||'전체 (조건 없음)',{font:{sz:9,italic:true,color:{rgb:'374151'},name:'Arial'},fill:{fgColor:{rgb:'FEF3C7'}}}); merge(wsS,1,1,1,14);
-    setCell(wsS,2,0,'결과',S.grayHdr);
-    setCell(wsS,2,1,`문서 ${docNos.length}건 / 품목 ${gLastFilteredItems.length}개`,{font:{bold:true,sz:10,color:{rgb:'1A3A5C'},name:'Arial'},fill:{fgColor:{rgb:'EBF5FF'}}}); merge(wsS,2,1,2,14);
-
-    ['No.','문서번호','기안자','기안일','프로젝트명','코드','품명','규격','수량','입고예정일','입고완료','배송시작일','배송완료예정일','배송완료','메모']
-      .forEach((h,ci)=>setCell(wsS,4,ci,h,S.navyHdr));
-
-    gLastFilteredItems.forEach((row,ri)=>{
-      const isE=ri%2===0, bg=isE?S.even:S.odd, bgL=isE?S.leftEven:S.leftOdd;
-      const st=gStatusMap[row.doc_no]||{};
-      const arrSt=st.arrival_done?S.done:(st.expected_arrival&&st.expected_arrival<today?S.late:S.pend);
-      const shipSt=st.ship_done?S.done:(st.ship_done_date&&st.ship_done_date<today?S.late:bg);
-      const r=ri+5; wsS['!rows'].push({hpx:22});
-      const dn={...S.docNo,fill:{fgColor:{rgb:isE?'EBF5FF':'FFFFFF'}}};
-      [
-        [ri+1,bg],[row.doc_no||'',dn],[row.requester||'',bg],[row.doc_date||'',bg],
-        [row.p_name||'',bgL],[row.p_code||'',bg],[row.name||'',bgL],[row.spec||'',bgL],
-        [row.qty||0,S.qty],[st.expected_arrival||'',bg],
-        [st.arrival_done?'✅ 완료':'⏳ 미완료',arrSt],
-        [st.ship_start_date||'',bg],[st.ship_done_date||'',bg],
-        [st.ship_done?'✅ 완료':(st.ship_start_date?'🚚 배송중':'—'),shipSt],
-        [st.memo||'',bgL]
-      ].forEach(([v,s],ci)=>setCell(wsS,r,ci,v,s));
-    });
-
-    // 합계 행
-    const tqty=gLastFilteredItems.reduce((s,r)=>s+(r.qty||0),0);
-    const tRow=5+gLastFilteredItems.length; wsS['!rows'].push({hpx:26});
-    setCell(wsS,tRow,0,'합계',S.grayHdr); merge(wsS,tRow,0,tRow,7);
-    setCell(wsS,tRow,8,tqty,{...S.qty,font:{...S.qty.font,sz:13}});
-    XLSX.utils.book_append_sheet(wb,wsS,'🔍 검색결과');
-
-    /* ════ 시트3: 통계 ════ */
-    const wsT={}; wsT['!cols']=[20,12,12,12,12,20,12,12,12,12].map(w=>({wpx:w*7}));
-    wsT['!rows']=[{hpx:32},{hpx:14},{hpx:28},{hpx:38},{hpx:14}];
-    setCell(wsT,0,0,'📊  통계 요약  |  '+today,S.title); merge(wsT,0,0,0,9);
-
-    const kpis=[
-      ['전체 품목',gLastFilteredItems.length,'1A3A5C'],
-      ['문서 수',docNos.length,'1A56DB'],
-      ['입고완료',gLastFilteredItems.filter(r=>(gStatusMap[r.doc_no]||{}).arrival_done).length,'057A55'],
-      ['입고 미완료',gLastFilteredItems.length-gLastFilteredItems.filter(r=>(gStatusMap[r.doc_no]||{}).arrival_done).length,'B45309'],
-      ['배송완료',gLastFilteredItems.filter(r=>(gStatusMap[r.doc_no]||{}).ship_done).length,'0694A2'],
-    ];
-    kpis.forEach(([lbl,val,clr],ki)=>{
-      const c=ki*2;
-      const ls={font:{bold:true,sz:9,color:{rgb:'FFFFFF'},name:'Arial'},fill:{fgColor:{rgb:clr}},alignment:{horizontal:'center',vertical:'center'}};
-      const vs={font:{bold:true,sz:22,color:{rgb:'FFFFFF'},name:'Arial'},fill:{fgColor:{rgb:clr}},alignment:{horizontal:'center',vertical:'center'}};
-      setCell(wsT,2,c,lbl,ls); merge(wsT,2,c,2,c+1);
-      setCell(wsT,3,val===gLastFilteredItems.length&&ki===0?3:3,val,vs);
-      setCell(wsT,3,c,val,vs); merge(wsT,3,c,3,c+1);
-    });
-
-    // 기안자별
-    const su={};
-    gLastFilteredItems.forEach(r=>{const u=r.requester||'(미상)',st=gStatusMap[r.doc_no]||{};if(!su[u])su[u]={i:0,a:0,s:0,q:0};su[u].i++;if(st.arrival_done)su[u].a++;if(st.ship_done)su[u].s++;su[u].q+=(r.qty||0);});
-    let sr=5; wsT['!rows'].push({hpx:18});
-    setCell(wsT,sr,0,'👤  기안자별 현황',S.sec); merge(wsT,sr,0,sr,4); sr++;
-    wsT['!rows'].push({hpx:24});
-    ['기안자','품목 수','입고완료','배송완료','총수량'].forEach((h,ci)=>setCell(wsT,sr,ci,h,S.grayHdr)); sr++;
-    Object.entries(su).forEach(([u,v],ri)=>{
-      const isE=ri%2===0,bg=isE?S.even:S.odd; wsT['!rows'].push({hpx:22});
-      setCell(wsT,sr,0,u,{...bg,font:{bold:true,sz:10,color:{rgb:'1A3A5C'},name:'Arial'}});
-      setCell(wsT,sr,1,v.i,bg); setCell(wsT,sr,2,v.a,v.a===v.i?S.done:bg);
-      setCell(wsT,sr,3,v.s,v.s===v.i?S.done:bg); setCell(wsT,sr,4,v.q,S.qty); sr++;
-    });
-
-    // 프로젝트별
-    const sp={};
-    gLastFilteredItems.forEach(r=>{const p=r.p_name||'(미상)',st=gStatusMap[r.doc_no]||{};if(!sp[p])sp[p]={i:0,a:0,q:0};sp[p].i++;if(st.arrival_done)sp[p].a++;sp[p].q+=(r.qty||0);});
-    sr++; wsT['!rows'].push({hpx:18});
-    setCell(wsT,sr,0,'📁  프로젝트별 현황',S.sec); merge(wsT,sr,0,sr,4); sr++;
-    wsT['!rows'].push({hpx:24});
-    ['프로젝트명','품목 수','입고완료','입고율','총수량'].forEach((h,ci)=>setCell(wsT,sr,ci,h,S.grayHdr)); sr++;
-    Object.entries(sp).forEach(([p,v],ri)=>{
-      const isE=ri%2===0,bg=isE?S.even:S.odd; wsT['!rows'].push({hpx:22});
-      const rate=v.i>0?Math.round(v.a/v.i*100)+'%':'-';
-      setCell(wsT,sr,0,p,{...bg,font:{bold:true,sz:10,color:{rgb:'0694A2'},name:'Arial'}});
-      setCell(wsT,sr,1,v.i,bg); setCell(wsT,sr,2,v.a,v.a===v.i?S.done:bg);
-      setCell(wsT,sr,3,rate,v.a===v.i?S.done:bg); setCell(wsT,sr,4,v.q,S.qty); sr++;
-    });
-    XLSX.utils.book_append_sheet(wb,wsT,'📊 통계');
-
-    /* ════ 시트4: 가이드 ════ */
-    const wsG={}; wsG['!cols']=[{wpx:28},{wpx:140},{wpx:385},{wpx:100}];
-    wsG['!rows']=[{hpx:32}];
-    setCell(wsG,0,0,'📌  인텍플러스 구매관리 — 사용 가이드',S.title); merge(wsG,0,0,0,3);
-    const guideData=[
-      ['sec','📦 시트 구성'],
-      ['hdr','시트명','설명'],
-      ['row','','📦 데이터','원본 데이터 시트. 가져온 데이터를 붙여넣는 곳'],
-      ['row','','🔍 검색결과','현재 검색 스냅샷 (정적 시트)'],
-      ['row','','📊 통계','KPI + 기안자별·프로젝트별 집계'],
-      ['row','','📌 가이드','이 파일'],
-      ['sp'],
-      ['sec','🔍 웹 검색 기능 안내'],
-      ['row','①','단일 조건 검색','품명 칸에 "ROLLER" 입력 → 해당 품목만 표시'],
-      ['row','②','다중 조건 검색','기안자 + 입고상태 등 동시에 입력 → 모두 만족하는 항목만 표시'],
-      ['row','③','부분 일치','"IBAZ" → IBAZ-DSK, IBAZ-MSR 등 모두 검색됨'],
-      ['row','④','엑셀 내보내기','검색 후 "📊 엑셀 내보내기" 버튼 클릭'],
-      ['sp'],
-      ['sec','⚠️ 주의사항'],
-      ['warn','!','스냅샷 파일','이 파일은 다운로드 시점의 데이터입니다. 실시간 연동 아님'],
-      ['warn','!','데이터 수정 자제','원본 시트 직접 수정 시 통계에 반영 안 됨'],
-    ];
-    let gr=1;
-    guideData.forEach(g=>{
-      if(g[0]==='sp'){wsG['!rows'].push({hpx:10});gr++;return;}
-      wsG['!rows'].push({hpx:g[0]==='sec'?28:24});
-      if(g[0]==='sec'){setCell(wsG,gr,0,g[1],S.sec);merge(wsG,gr,0,gr,3);}
-      else if(g[0]==='hdr'){setCell(wsG,gr,1,g[1],S.grayHdr);setCell(wsG,gr,2,g[2],S.grayHdr);merge(wsG,gr,2,gr,3);}
-      else if(g[0]==='row'){
-        setCell(wsG,gr,0,g[1],{font:{bold:true,sz:11,color:{rgb:'1A56DB'},name:'Arial'},alignment:{horizontal:'center',vertical:'center'}});
-        setCell(wsG,gr,1,g[2],S.guideLbl);
-        setCell(wsG,gr,2,g[3],S.guide); merge(wsG,gr,2,gr,3);
-      } else if(g[0]==='warn'){
-        setCell(wsG,gr,0,g[1],{font:{bold:true,sz:13,color:{rgb:'B45309'},name:'Arial'},alignment:{horizontal:'center',vertical:'center'}});
-        setCell(wsG,gr,1,g[2],S.warn); setCell(wsG,gr,2,g[3],S.warn); merge(wsG,gr,2,gr,3);
-      }
-      gr++;
-    });
-    XLSX.utils.book_append_sheet(wb,wsG,'📌 가이드');
-
-    /* ── 파일 저장 ── */
-    const fname=`인텍플러스_구매관리_${today}.xlsx`;
-    XLSX.writeFile(wb,fname,{bookType:'xlsx',type:'binary',cellStyles:true});
-    showToast(`✅ ${fname} 다운로드 완료`,'success');
+    // Blob으로 받아서 다운로드
+    const blob = await res.blob();
+    const today = new Date().toISOString().slice(0, 10);
+    const fname = `인텍플러스_구매관리_${today}.xlsx`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`✅ ${fname} 다운로드 완료`, 'success');
 
   } catch(err) {
-    console.error(err);
-    showToast('❌ 엑셀 내보내기 실패: '+err.message,'error');
+    console.error('Excel export error:', err);
+    showToast('❌ 엑셀 내보내기 실패: ' + err.message, 'error');
   } finally {
-    btn.disabled=false; btn.textContent='📊 엑셀 내보내기';
+    btn.disabled = false;
+    btn.textContent = '📊 엑셀 내보내기';
   }
 }
 

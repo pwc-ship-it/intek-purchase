@@ -69,7 +69,12 @@ function sc(cell, value, { f, fl, al, bd } = {}) {
 }
 
 // 날짜 기준
-const today = () => new Date().toISOString().slice(0, 10);
+// KST(한국 시간) 기준 날짜 반환 — Vercel 서버는 UTC이므로 +9시간 보정
+const today = () => {
+  const d = new Date();
+  d.setHours(d.getHours() + 9); // UTC → KST
+  return d.toISOString().slice(0, 10);
+};
 
 // 입고/배송 상태
 function arrInfo(st) {
